@@ -24,7 +24,7 @@ import tf
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import PoseWithCovariance
 from geometry_msgs.msg import Quaternion
-from cwru_base.msg import Pose
+from cwru_msgs.msg import Pose
 from math import pi
 
 odom_pub = rospy.Publisher('odom', Odometry)

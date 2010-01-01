@@ -20,7 +20,7 @@ import roslib
 roslib.load_manifest('cwru_base')
 import rospy
 
-from cwru_base.msg import Sonar
+from cwru_msgs.msg import Sonar
 from sensor_msgs.msg import LaserScan
 
 scan=LaserScan()
