@@ -57,17 +57,18 @@ string check;
 
 //Variables to store the lidar alarm information
 bool lidar_alarm;
-bool lidar_alarm_;
+bool lidar_alarm_; //global variable to store lidar status
 string lidar_check;
 
 //Soft_stop variables
-bool soft_stop_;
+bool soft_stop_;  //in future add callback message
 
 //arrays that hold the segment and turn information for plotting the course
 double segments [] = {4.8, 0.0, 12.4, 0.0, 8.4, 0.0}; //variable to store movement segments
 double turns [] = {0.0, -3.14159/2, 0.0, -3.14159/2, 0.0, -3.14159/2}; //variable to store turn segments
 int counter = 1; //counts through segment and turn arrays
 
+//starting at first values in array
 double segment_length = segments [0];
 double angle_rotation = turns [0];
 
@@ -113,6 +114,7 @@ void odomCallback(const nav_msgs::Odometry& odom_rcvd) {
     ROS_INFO("odom CB: x = %f, y= %f, phi = %f, v = %f, omega = %f", odom_x_, odom_y_, odom_phi_, odom_vel_, odom_omega_);
 }
 
+//store estop information in global variable
 void estopCallback(const std_msgs::Bool::ConstPtr& estop) 
 {
     if (estop->data == true){
@@ -128,6 +130,7 @@ void estopCallback(const std_msgs::Bool::ConstPtr& estop)
     ROS_INFO("%s", check.c_str());
 }
 
+//store lidar information in global variable
 void lidarCallback(const std_msgs::Bool& lidar_alarm){
     if (lidar_alarm.data == true){
         lidar_check = "lidar_alarm_on";
@@ -141,6 +144,7 @@ void lidarCallback(const std_msgs::Bool& lidar_alarm){
     ROS_INFO("%s", lidar_check.c_str());
 }
 
+//cycle through the array of distance moves
 int segmentCycle(double segment [], double turn [], int i){
     segment_length = segment [i];
     angle_rotation = turn [i];
@@ -322,17 +326,18 @@ int main(int argc, char **argv) {
         cmd_vel.linear.x = new_cmd_vel;
         cmd_vel.angular.z = new_cmd_omega;
 
+        //begin decel to stop if lidar alarm or soft stop is on
         if (lidar_alarm_ == true || soft_stop_ == true){
             
             if (odom_vel_ >= .01){
-                cmd_vel.linear.x = odom_vel_ - a_max*dt_callback_;   //proposed lidar braking
+                cmd_vel.linear.x = odom_vel_ - a_max*dt_callback_;  //decel 
             }
-            else cmd_vel.linear.x = 0;
+            else cmd_vel.linear.x = 0;  //velocity 0 if slow enough
             
-            if (fabs(odom_omega_) >= .05){
-                cmd_vel.angular.z = (odom_omega_/fabs(odom_omega_))*(fabs(odom_omega_) - alpha_max*dt_callback_);   //proposed lidar braking
+            if (fabs(odom_omega_) >= .01){
+                cmd_vel.angular.z = (odom_omega_/fabs(odom_omega_))*(fabs(odom_omega_) - alpha_max*dt_callback_);  //decel 
             }
-            else cmd_vel.angular.z = 0;
+            else cmd_vel.angular.z = 0; //omega 0 if slow enough
         }
 
         if (dist_to_go <= 0.0 || estop_ == false) { //uh-oh...went too far already! or the estop is true!
@@ -346,6 +351,7 @@ int main(int argc, char **argv) {
         vel_cmd_publisher.publish(cmd_vel); // publish the command to robot0/cmd_vel
         rtimer.sleep(); // sleep for remainder of timed iteration
 
+        //after finishing current move, cycle array, reinitialize starting values for next iteration
         if (dist_to_go <= 0.0 && (angle_to_turn <= 0.01 && angle_to_turn >= -0.01)) {
         segmentCycle(segments, turns, counter);
         counter ++;
