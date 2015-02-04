@@ -164,8 +164,8 @@ int main(int argc, char **argv) {
 
     //create a publisher object that can talk to ROS and issue twist messages on named topic;
     // note: this is customized for stdr robot; would need to change the topic to talk to jinx, etc.
-    ros::Publisher vel_cmd_publisher = nh.advertise<geometry_msgs::Twist>("robot0/cmd_vel", 1);
-    ros::Subscriber sub = nh.subscribe("/robot0/odom", 1, odomCallback);
+    ros::Publisher vel_cmd_publisher = nh.advertise<geometry_msgs::Twist>("jinx/cmd_vel", 1);
+    ros::Subscriber sub = nh.subscribe("/jinx/odom", 1, odomCallback);
     ros::Rate rtimer(1 / DT); // frequency corresponding to chosen sample period DT; the main loop will run this fast
 
     // here is a crude description of one segment of a journey.  Will want to generalize this to handle multiple segments
