@@ -52,7 +52,7 @@ const double DT = 0.050; // choose an update rate of 20Hz; go faster with actual
 
 //Variables to store the estop information
 bool estop;
-bool estop_; //global variable to store estop status
+bool estop_ = true; //global variable to store estop status
 string check;
 
 //Variables to store the lidar alarm information
