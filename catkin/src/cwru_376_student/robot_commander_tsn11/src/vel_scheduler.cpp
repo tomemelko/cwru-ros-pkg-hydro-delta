@@ -34,10 +34,8 @@ therefore, theta = 2*atan2(qz,qw)
 #include <std_msgs/Bool.h>
 #include <geometry_msgs/Twist.h>
 #include <nav_msgs/Odometry.h>
-#include <cwru_base/Pose.h>
 #include <iostream>
 #include <fstream>
-#include <cwru_base/cRIOSensors.h>
 #include <math.h>
 
 using namespace std;
