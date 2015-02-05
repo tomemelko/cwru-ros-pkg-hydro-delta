@@ -162,21 +162,15 @@ int main(int argc, char **argv) {
 
     //create a publisher object that can talk to ROS and issue twist messages on named topic;
     // note: this is customized for stdr robot; would need to change the topic to talk to jinx, etc.
-    ros::Publisher vel_cmd_publisher = nh.advertise<geometry_msgs::Twist>("/cmd_vel", 1);
+    ros::Publisher vel_cmd_publisher = nh.advertise<geometry_msgs::Twist>("cmd_vel", 1);
     ros::Subscriber sub = nh.subscribe("/odom", 1, odomCallback);
     ros::Rate rtimer(1 / DT); // frequency corresponding to chosen sample period DT; the main loop will run this fast
-
-    // here is a crude description of one segment of a journey.  Will want to generalize this to handle multiple segments
-    // define the desired path length of this segment
-    //double segment_length = 5; // desired travel distance in meters; anticipate travelling multiple segments
-    //double angle_rotation = 0;
     
     //here's a subtlety:  might be tempted to measure distance to the goal, instead of distance from the start.
     // HOWEVER, will NEVER satisfy distance to goal = 0 precisely, but WILL eventually move far enought to satisfy distance travelled condition
     double segment_length_done = 0.0; // need to compute actual distance travelled within the current segment
     double start_x = 0.0; // fill these in with actual values once odom message is received
     double start_y = 0.0; // subsequent segment start coordinates should be specified relative to end of previous segment
-    
     double start_phi = 0.0; //starting angle of the robot
 
     double scheduled_vel = 0.0; //desired vel, assuming all is per plan
