@@ -29,14 +29,13 @@ qw = cos(angle/2)
 therefore, theta = 2*atan2(qz,qw)
 */
 
+#include <math.h>
 #include <ros/ros.h>
 #include <std_msgs/Float64.h>
 #include <std_msgs/Bool.h>
 #include <geometry_msgs/Twist.h>
 #include <nav_msgs/Odometry.h>
-#include <iostream>
-#include <fstream>
-#include <math.h>
+
 
 using namespace std;
 
@@ -115,8 +114,7 @@ void odomCallback(const nav_msgs::Odometry& odom_rcvd) {
 }
 
 //store estop information in global variable
-void estopCallback(const std_msgs::Bool::ConstPtr& estop) 
-{
+void estopCallback(const std_msgs::Bool::ConstPtr& estop){
     if (estop->data == true){
       check = "estop_off";  // means motors are ENABLED
       estop_ = true;
@@ -164,8 +162,8 @@ int main(int argc, char **argv) {
 
     //create a publisher object that can talk to ROS and issue twist messages on named topic;
     // note: this is customized for stdr robot; would need to change the topic to talk to jinx, etc.
-    ros::Publisher vel_cmd_publisher = nh.advertise<geometry_msgs::Twist>("jinx/cmd_vel", 1);
-    ros::Subscriber sub = nh.subscribe("/jinx/odom", 1, odomCallback);
+    ros::Publisher vel_cmd_publisher = nh.advertise<geometry_msgs::Twist>("/cmd_vel", 1);
+    ros::Subscriber sub = nh.subscribe("/odom", 1, odomCallback);
     ros::Rate rtimer(1 / DT); // frequency corresponding to chosen sample period DT; the main loop will run this fast
 
     // here is a crude description of one segment of a journey.  Will want to generalize this to handle multiple segments
@@ -199,10 +197,12 @@ int main(int argc, char **argv) {
     odom_omega_ = 1000000; // absurdly high
     ROS_INFO("waiting for valid odom callback...");
     t_last_callback_ = ros::Time::now(); // initialize reference for computed update rate of callback
+    ROS_WARN("Successfully passed the time now of death");
     while (odom_omega_ > 1000) {
         rtimer.sleep();
         ros::spinOnce();
     }
+
     ROS_INFO("received odom message; proceeding %f", odom_omega_);
     start_x = odom_x_;  //starting points for segment or rotation regimes
     start_y = odom_y_;
