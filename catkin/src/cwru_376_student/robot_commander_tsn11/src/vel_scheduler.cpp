@@ -40,18 +40,19 @@ therefore, theta = 2*atan2(qz,qw)
 using namespace std;
 
 
-// set some dynamic limits...
+// set some dynamic limits
 const double v_max = 2.0; //1m/sec is a slow walk
 const double v_min = 0.1; // if command velocity too low, robot won't move
 const double a_max = 0.1; //1m/sec^2 is 0.1 g's
-//const double a_max_decel = 0.1; // TEST
 const double omega_max = 0.5; //1 rad/sec-> about 6 seconds to rotate 1 full rev
 const double alpha_max = 0.05; //0.5 rad/sec^2-> takes 2 sec to get from rest to full omega
 const double DT = 0.050; // choose an update rate of 20Hz; go faster with actual hardware
 
+
 //Variables to store the estop information
 bool estop;
 bool estop_ = true; //global variable to store estop status
+
 string check;
 
 //Variables to store the lidar alarm information
@@ -62,10 +63,12 @@ string lidar_check;
 //Soft_stop variables
 bool soft_stop_;  //in future add callback message
 
+
 //arrays that hold the segment and turn information for plotting the course
 double segments [] = {4.8, 0.0, 12.4, 0.0, 8.4, 0.0}; //variable to store movement segments
 double turns [] = {0.0, -3.14159/2, 0.0, -3.14159/2, 0.0, -3.14159/2}; //variable to store turn segments
 int counter = 1; //counts through segment and turn arrays
+
 
 //starting at first values in array
 double segment_length = segments [0];
@@ -73,7 +76,7 @@ double angle_rotation = turns [0];
 
 // globals for communication w/ callbacks:
 double odom_vel_ = 0.0; // measured/published system speed
-double odom_omega_ = 0.0; // measured/published system yaw rate (spin)
+double odom_omega_ = 0.0; // measured/published system yaw rate (spin) 
 double odom_x_ = 0.0;
 double odom_y_ = 0.0;
 double odom_phi_ = 0.0;
@@ -81,21 +84,22 @@ double dt_odom_ = 0.0;
 ros::Time t_last_callback_;
 double dt_callback_=0.0;
 
-// receive odom messages and strip off the components we want to use
-// tested this OK w/ stdr
-
 // receive the pose and velocity estimates from the simulator (or the physical robot)
 // copy the relevant values to global variables, for use by "main"
 // Note: stdr updates odom only at 10Hz; Jinx is 50Hz (?)
-void odomCallback(const nav_msgs::Odometry& odom_rcvd) {
-    //here's a trick to compute the delta-time between successive callbacks:
-    dt_callback_ = (ros::Time::now() - t_last_callback_).toSec();
-    t_last_callback_ = ros::Time::now(); // let's remember the current time, and use it next iteration
+void odomCallback(const nav_msgs::Odometry& odom_rcvd) 
+{
+    dt_callback_ = (ros::Time::now() - t_last_callback_).toSec();       //here's a trick to compute the delta-time between successive callbacks:
+    t_last_callback_ = ros::Time::now();        // let's remember the current time, and use it next iteration
 
-    if (dt_callback_ > 0.15) { // on start-up, and with occasional hiccups, this delta-time can be unexpectedly large
+
+    // on start-up, and with occasional hiccups, this delta-time can be unexpectedly large
+    if (dt_callback_ > 0.15) 
+{    
         dt_callback_ = 0.1; // can choose to clamp a max value on this, if dt_callback is used for computations elsewhere
-        ROS_WARN("large dt; dt = %lf", dt_callback_); // let's complain whenever this happens
-    }
+        ROS_WARN("large dt; dt = %lf", dt_callback_);   // let's complain whenever this happens
+
+}
     
     // copy some of the components of the received message into global vars, for use by "main()"
     // we care about speed and spin, as well as position estimates x,y and heading
@@ -107,20 +111,27 @@ void odomCallback(const nav_msgs::Odometry& odom_rcvd) {
     // see notes above for conversion for simple planar motion
     double quat_z = odom_rcvd.pose.pose.orientation.z;
     double quat_w = odom_rcvd.pose.pose.orientation.w;
-    odom_phi_ = 2.0*atan2(quat_z, quat_w); // cheap conversion from quaternion to heading for planar motion
+    // cheap conversion from quaternion to heading for planar motion
+    odom_phi_ = 2.0*atan2(quat_z, quat_w); 
 
     // the output below could get annoying; may comment this out, but useful initially for debugging
     ROS_INFO("odom CB: x = %f, y= %f, phi = %f, v = %f, omega = %f", odom_x_, odom_y_, odom_phi_, odom_vel_, odom_omega_);
 }
 
 //store estop information in global variable
-void estopCallback(const std_msgs::Bool::ConstPtr& estop){
-    if (estop->data == true){
-      check = "estop_off";  // means motors are ENABLED
+void estopCallback(const std_msgs::Bool::ConstPtr& estop)
+{
+    if (estop->data == true)
+    {
+      // means motors are ENABLED  
+      check = "estop_off";  
       estop_ = true;
     }
-    else if (estop->data == false){
-      check = "estop_on";  // means motors are DISABLED
+
+    else if (estop->data == false)
+    {
+      // means motors are DISABLED  
+      check = "estop_on";  
       estop_ = false;
     }
     
@@ -129,12 +140,16 @@ void estopCallback(const std_msgs::Bool::ConstPtr& estop){
 }
 
 //store lidar information in global variable
-void lidarCallback(const std_msgs::Bool& lidar_alarm){
-    if (lidar_alarm.data == true){
+void lidarCallback(const std_msgs::Bool& lidar_alarm)
+{
+    if (lidar_alarm.data == true)
+    {
         lidar_check = "lidar_alarm_on";
         lidar_alarm_ = true;
     }
-    else if (lidar_alarm.data == false){
+
+    else if (lidar_alarm.data == false)
+    {
         lidar_check = "lidar_alarm_off";
         lidar_alarm_ = false;
     }
@@ -143,13 +158,15 @@ void lidarCallback(const std_msgs::Bool& lidar_alarm){
 }
 
 //cycle through the array of distance moves
-int segmentCycle(double segment [], double turn [], int i){
+int segmentCycle(double segment [], double turn [], int i)
+{
     segment_length = segment [i];
     angle_rotation = turn [i];
     ROS_INFO("Segment length: %f, Rotation Angle: %f", segment_length, angle_rotation);
 }
 
-int main(int argc, char **argv) {
+int main(int argc, char **argv)
+{
     ros::init(argc, argv, "vel_scheduler"); // name of this node will be "minimal_publisher1"
 
     ros::NodeHandle nh; // get a ros nodehandle; standard yadda-yadda
@@ -166,8 +183,6 @@ int main(int argc, char **argv) {
     ros::Subscriber sub = nh.subscribe("/odom", 1, odomCallback);
     ros::Rate rtimer(1 / DT); // frequency corresponding to chosen sample period DT; the main loop will run this fast
     
-    //here's a subtlety:  might be tempted to measure distance to the goal, instead of distance from the start.
-    // HOWEVER, will NEVER satisfy distance to goal = 0 precisely, but WILL eventually move far enought to satisfy distance travelled condition
     double segment_length_done = 0.0; // need to compute actual distance travelled within the current segment
     double start_x = 0.0; // fill these in with actual values once odom message is received
     double start_y = 0.0; // subsequent segment start coordinates should be specified relative to end of previous segment
@@ -187,20 +202,28 @@ int main(int argc, char **argv) {
     cmd_vel.angular.y = 0.0;
     cmd_vel.angular.z = 0.0;
 
-    // let's wait for odom callback to start getting good values...
-    odom_omega_ = 1000000; // absurdly high
+    // let's wait for odom callback to start getting good values
+    odom_omega_ = 1000000;
+
     ROS_INFO("waiting for valid odom callback...");
-    t_last_callback_ = ros::Time::now(); // initialize reference for computed update rate of callback
+
+    // initialize reference for computed update rate of callback
+    t_last_callback_ = ros::Time::now(); 
     ROS_WARN("Successfully passed the time now of death");
-    while (odom_omega_ > 1000) {
+
+    while (odom_omega_ > 1000) 
+    {
         rtimer.sleep();
         ros::spinOnce();
     }
 
     ROS_INFO("received odom message; proceeding %f", odom_omega_);
-    start_x = odom_x_;  //starting points for segment or rotation regimes
+
+     //starting points for segment or rotation regimes
+    start_x = odom_x_; 
     start_y = odom_y_;
     start_phi = odom_phi_;
+
     ROS_INFO("start pose: x %f, y= %f, phi = %f", start_x, start_y, start_phi);
 
     // compute some properties of trapezoidal velocity profile plan:
@@ -241,42 +264,60 @@ int main(int argc, char **argv) {
         ROS_INFO("dist travelled: %f, angle turned: %f, angle to turn: %f", segment_length_done, delta_phi, angle_to_turn);
 
         //use segment_length_done to decide what vel should be, as per plan
-        if (dist_to_go<= 0.0) { // at goal, or overshot; stop!
+
+        // at goal, or overshot; stop!
+        if (dist_to_go<= 0.0) 
+        {
             scheduled_vel=0.0;
         }
-        else if (dist_to_go <= dist_decel) { //possibly should be braking to a halt
-            // dist = 0.5*a*t_halt^2; so t_halt = sqrt(2*dist/a);   v = a*t_halt
-            // so v = a*sqrt(2*dist/a) = sqrt(2*dist*a)
+
+        //possibly should be braking to a halt
+        // dist = 0.5*a*t_halt^2; so t_halt = sqrt(2*dist/a);   v = a*t_halt
+        // so v = a*sqrt(2*dist/a) = sqrt(2*dist*a)
+        else if (dist_to_go <= dist_decel)
+        {    
             scheduled_vel = sqrt(2 * dist_to_go * a_max);
             ROS_INFO("braking zone: v_sched = %f",scheduled_vel);
         }
-        else { // not ready to decel, so target vel is v_max, either accel to it or hold it
+
+        // not ready to decel, so target vel is v_max, either accel to it or hold it
+        else 
+        { 
             scheduled_vel = v_max;
         }
 
         //Use the amount turned to decide on the rate of rotation
-        if (angle_to_turn <= 0.01 && angle_to_turn >= -0.01) {
-            scheduled_omega = 0.0; //if we have reached the angle we were trying to turn to
-            //ROS_INFO("Angle to turn: %f", angle_to_turn); //debugging information
+        if (angle_to_turn <= 0.01 && angle_to_turn >= -0.01) 
+        {
+            //if we have reached the angle we were trying to turn to
+            scheduled_omega = 0.0; 
         }
-        else if (fabs(angle_to_turn) <= rot_decel) {
+
+        else if (fabs(angle_to_turn) <= rot_decel)
+        {
             scheduled_omega = rot_direction*sqrt(2 * fabs(angle_to_turn) * alpha_max); //should be slowing down our rotation if we are past the angle necessary to decel
-            //ROS_INFO("Stop turning zone: omega_sched = %f, abs angle to turn: %f",scheduled_omega, fabs(angle_to_turn)); //tell us that you are slowing down the turn
         }
-        else { //not a point of decel therefore try and run at max turn, or accelerate the turn to max turn
+
+        //not a point of decel therefore try and run at max turn, or accelerate the turn to max turn
+        else 
+        { 
             scheduled_omega = rot_direction*omega_max;
-            //ROS_WARN("Going max speed!"); //debugging information
         }
   
 
         //how does the current velocity compare to the scheduled vel?
-        if (odom_vel_ < scheduled_vel) {  // maybe we halted, e.g. due to estop or obstacle;
+        // maybe we halted, e.g. due to estop or obstacle;
+        if (odom_vel_ < scheduled_vel) 
+        {  
             // may need to ramp up to v_max; do so within accel limits
             double v_test = odom_vel_ + a_max*dt_callback_; // if callbacks are slow, this could be abrupt
             // operator:  c = (a>b) ? a : b;
             new_cmd_vel = (v_test < scheduled_vel) ? v_test : scheduled_vel; //choose lesser of two options
-            // this prevents overshooting scheduled_vel
-        } else if (odom_vel_ > scheduled_vel) { //travelling too fast--this could be trouble
+        }
+
+        //travelling too fast--this could be trouble
+        else if (odom_vel_ > scheduled_vel) 
+        { 
             // ramp down to the scheduled velocity.  However, scheduled velocity might already be ramping down at a_max.
             // need to catch up, so ramp down even faster than a_max.  Try 1.2*a_max.
             ROS_INFO("odom vel: %f; sched vel: %f",odom_vel_,scheduled_vel); //debug/analysis output; can comment this out
@@ -286,13 +327,16 @@ int main(int argc, char **argv) {
             new_cmd_vel = (v_test > scheduled_vel) ? v_test : scheduled_vel; // choose larger of two options...don't overshoot scheduled_vel
         } 
 
-        else {
+        else 
+        {
             new_cmd_vel = scheduled_vel; //silly third case: this is already true, if here.  Issue the scheduled velocity
         }
+
         ROS_INFO("cmd vel: %f",new_cmd_vel); // debug output
 
         //compare the current turning speed to the scheduled turning speed
-        if (fabs(odom_omega_) < fabs(scheduled_omega)){
+        if (fabs(odom_omega_) < fabs(scheduled_omega))
+        {
             //for some reason the turning speed is less than schedule
             double omega_test = odom_omega_ + (odom_omega_/fabs(odom_omega_))*alpha_max*dt_callback_;
             //create two options for turning
@@ -300,20 +344,23 @@ int main(int argc, char **argv) {
             //done in order to prevent overshooting the scheduled_omega
             //ROS_WARN("Speeding up..."); //debugging information
         }
-        else if (fabs(odom_omega_)>fabs(scheduled_omega)){ // for some reason we are traveling too fast
+
+        // for some reason we are traveling too fast
+        else if (fabs(odom_omega_)>fabs(scheduled_omega))
+        { 
             //lets ramp down at 1.2*alpha_max in case we are already trying to decel
             ROS_INFO("odom omega: %f; sched omega: %f",odom_omega_,scheduled_omega); //debug/analysis output; can comment this out
 
             double omega_test = (odom_omega_/fabs(odom_omega_))*(fabs(odom_omega_) - 1.2*alpha_max*dt_callback_); //turning too fast, slow down faster than normal
 
             new_cmd_omega = (fabs(omega_test) > fabs(scheduled_omega)) ? omega_test : scheduled_omega; //choose the larger of the two options, as to not overshoot scheduled_omega
-            //ROS_WARN("Trying to slow down!"); //debugging information
         }
 
-        else {
+        else 
+        {
             new_cmd_omega = scheduled_omega;//apply the scheduled turn speed if everything else is fine
-            //ROS_WARN("We good..."); // debugging information
         }
+
         ROS_INFO("cmd omega: %f",new_cmd_omega); // debug output
 
         //newly applied movement commands
@@ -321,24 +368,35 @@ int main(int argc, char **argv) {
         cmd_vel.angular.z = new_cmd_omega;
 
         //begin decel to stop if lidar alarm or soft stop is on
-        if (lidar_alarm_ == true || soft_stop_ == true){
+        if (lidar_alarm_ == true || soft_stop_ == true)
+        {
             
-            if (odom_vel_ >= .01){
+            if (odom_vel_ >= .01)
+            {
                 cmd_vel.linear.x = odom_vel_ - a_max*dt_callback_;  //decel 
             }
+
             else cmd_vel.linear.x = 0;  //velocity 0 if slow enough
             
-            if (fabs(odom_omega_) >= .01){
+
+            if (fabs(odom_omega_) >= .01)
+            {
                 cmd_vel.angular.z = (odom_omega_/fabs(odom_omega_))*(fabs(odom_omega_) - alpha_max*dt_callback_);  //decel 
             }
+
             else cmd_vel.angular.z = 0; //omega 0 if slow enough
+
         }
 
-        if (dist_to_go <= 0.0 || estop_ == false) { //uh-oh...went too far already! or the estop is true!
+        //uh-oh...went too far already! or the estop is true!
+        if (dist_to_go <= 0.0 || estop_ == false) 
+        { 
             cmd_vel.linear.x = 0.0;  //command vel=0
         }
 
-        if ((angle_to_turn <= 0.01 && angle_to_turn >= -0.01) || estop_ == false) { //we overshot, just stop
+        //we overshot, just stop
+        if ((angle_to_turn <= 0.01 && angle_to_turn >= -0.01) || estop_ == false)
+        { 
             cmd_vel.angular.z = 0.0;
         }
 
@@ -346,17 +404,16 @@ int main(int argc, char **argv) {
         rtimer.sleep(); // sleep for remainder of timed iteration
 
         //after finishing current move, cycle array, reinitialize starting values for next iteration
-        if (dist_to_go <= 0.0 && (angle_to_turn <= 0.01 && angle_to_turn >= -0.01)) {
-        segmentCycle(segments, turns, counter);
-        counter ++;
-        start_x = odom_x_;
-        start_y = odom_y_;
-        start_phi = odom_phi_;
-        //break; // halt this node when this segment is complete.
-        // will want to generalize this to handle multiple segments
-        // ideally, will want to receive segments dynamically as publications from a higher-level planner
+        if (dist_to_go <= 0.0 && (angle_to_turn <= 0.01 && angle_to_turn >= -0.01)) 
+        {
+            segmentCycle(segments, turns, counter);
+            counter ++;
+            start_x = odom_x_;
+            start_y = odom_y_;
+            start_phi = odom_phi_;
         }
+        
     }
+
     ROS_INFO("completed move distance");
 }
-
