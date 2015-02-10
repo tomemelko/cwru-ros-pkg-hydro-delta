@@ -294,7 +294,7 @@ int main(int argc, char **argv)
 
         else if (fabs(angle_to_turn) <= rot_decel)
         {
-            scheduled_omega = .5*rot_direction*sqrt(2 * fabs(angle_to_turn) * alpha_max); //should be slowing down our rotation if we are past the angle necessary to decel
+            scheduled_omega = rot_direction*sqrt(2 * fabs(angle_to_turn) * alpha_max); //should be slowing down our rotation if we are past the angle necessary to decel
             ROS_WARN("Breaking zone: First Omega_Sched = %f", scheduled_omega);
         }
 
