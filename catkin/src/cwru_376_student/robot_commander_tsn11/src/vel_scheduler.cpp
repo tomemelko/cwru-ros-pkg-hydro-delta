@@ -43,9 +43,9 @@ using namespace std;
 // set some dynamic limits
 const double v_max = 1.0; //1m/sec is a slow walk
 const double v_min = 0.1; // if command velocity too low, robot won't move
-const double a_max = 0.25; //1m/sec^2 is 0.1 g's
+const double a_max = 0.5; //1m/sec^2 is 0.1 g's
 const double omega_max = 1.0; //1 rad/sec-> about 6 seconds to rotate 1 full rev
-const double alpha_max = 0.25; //0.5 rad/sec^2-> takes 2 sec to get from rest to full omega
+const double alpha_max = 0.5; //0.5 rad/sec^2-> takes 2 sec to get from rest to full omega
 const double DT = 0.050; // choose an update rate of 20Hz; go faster with actual hardware
 
 
