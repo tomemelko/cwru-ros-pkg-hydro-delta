@@ -118,33 +118,18 @@ void odomCallback(const nav_msgs::Odometry& odom_rcvd)
     ROS_INFO("odom CB: x = %f, y= %f, phi = %f, v = %f, omega = %f", odom_x_, odom_y_, odom_phi_, odom_vel_, odom_omega_);
 }
 
-<<<<<<< HEAD
 //store motorsEnabled information in global variable
-void motorsEnabledCallback(const std_msgs::Bool::ConstPtr& motorsEnabled){
-    if (motorsEnabled->data == true){
+void motorsEnabledCallback(const std_msgs::Bool::ConstPtr& motorsEnabled)
+{
+    if (motorsEnabled->data == true)
+    {
       check = "motorsEnabled_off";  // means motors are ENABLED
       motorsEnabled_ = true;
     }
-    else if (motorsEnabled->data == false){
+    else if (motorsEnabled->data == false)
+    {
       check = "motorsEnabled_on";  // means motors are DISABLED
       motorsEnabled_ = false;
-=======
-//store estop information in global variable
-void estopCallback(const std_msgs::Bool::ConstPtr& estop)
-{
-    if (estop->data == true)
-    {
-      // means motors are ENABLED  
-      check = "estop_off";  
-      estop_ = true;
-    }
-
-    else if (estop->data == false)
-    {
-      // means motors are DISABLED  
-      check = "estop_on";  
-      estop_ = false;
->>>>>>> ab1fed298b5cbca5e29f30dd1bd30057295e1ea5
     }
     
 
@@ -191,13 +176,8 @@ int main(int argc, char **argv)
 
     //create a publisher object that can talk to ROS and issue twist messages on named topic;
     // note: this is customized for stdr robot; would need to change the topic to talk to jinx, etc.
-<<<<<<< HEAD
     ros::Publisher vel_cmd_publisher = nh.advertise<geometry_msgs::Twist>("/cmd_vel", 1);
     ros::Subscriber sub = nh.subscribe("/odom", 1, odomCallback);
-=======
-    ros::Publisher vel_cmd_publisher = nh.advertise<geometry_msgs::Twist>("robot0/cmd_vel", 1);
-    ros::Subscriber sub = nh.subscribe("/robot0/odom", 1, odomCallback);
->>>>>>> ab1fed298b5cbca5e29f30dd1bd30057295e1ea5
     ros::Rate rtimer(1 / DT); // frequency corresponding to chosen sample period DT; the main loop will run this fast
     
     double segment_length_done = 0.0; // need to compute actual distance travelled within the current segment
@@ -315,7 +295,7 @@ int main(int argc, char **argv)
 
         else if (fabs(angle_to_turn) <= rot_decel)
         {
-            scheduled_omega = rot_direction*sqrt(2 * fabs(angle_to_turn) * alpha_max); //should be slowing down our rotation if we are past the angle necessary to decel
+            scheduled_omega = rot_direction*sqrt(2 * fabs(angle_to_turn) * alpha_maxestop); //should be slowing down our rotation if we are past the angle necessary to decel
             ROS_WARN("Breaking zone: First Omega_Sched = %f", scheduled_omega);
         }
 
@@ -327,13 +307,9 @@ int main(int argc, char **argv)
   
 
         //how does the current velocity compare to the scheduled vel?
-<<<<<<< HEAD
-        if (odom_vel_ < scheduled_vel) {  // maybe we halted, e.g. due to motorsEnabled or obstacle;
-=======
         // maybe we halted, e.g. due to estop or obstacle;
         if (odom_vel_ < scheduled_vel) 
         {  
->>>>>>> ab1fed298b5cbca5e29f30dd1bd30057295e1ea5
             // may need to ramp up to v_max; do so within accel limits
             double v_test = odom_vel_ + a_max*dt_callback_; // if callbacks are slow, this could be abrupt
             // operator:  c = (a>b) ? a : b;
@@ -415,28 +391,20 @@ int main(int argc, char **argv)
 
         }
 
-<<<<<<< HEAD
-        if (dist_to_go <= 0.0 || motorsEnabled_ == false) { //uh-oh...went too far already! or the motorsEnabled is true!
-            cmd_vel.linear.x = 0.0;  //command vel=0
-        }
-
-        if ((angle_to_turn <= 0.01 && angle_to_turn >= -0.01) || motorsEnabled_ == false) { //we overshot, just stop
-=======
-        if (estop_ == false)
+        if (motorsEnabled_ == false)
         {
             ROS_WARN("ESTOP ACTIVATED");
         }
 
         //uh-oh...went too far already! or the estop is true!
-        if (dist_to_go <= 0.0 || estop_ == false) 
+        if (dist_to_go <= 0.0 || motorsEnabled_ == false) 
         { 
             cmd_vel.linear.x = 0.0;  //command vel=0
         }
 
         //we overshot, just stop
-        if ((angle_to_turn <= 0.01 && angle_to_turn >= -0.01) || estop_ == false)
+        if ((angle_to_turn <= 0.01 && angle_to_turn >= -0.01) || motorsEnabled_ == false)
         { 
->>>>>>> ab1fed298b5cbca5e29f30dd1bd30057295e1ea5
             cmd_vel.angular.z = 0.0;
         }
 
