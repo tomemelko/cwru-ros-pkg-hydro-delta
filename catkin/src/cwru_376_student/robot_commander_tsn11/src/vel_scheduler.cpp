@@ -43,15 +43,15 @@ using namespace std;
 // set some dynamic limits...
 const double v_max = 2.0; //1m/sec is a slow walk
 const double v_min = 0.1; // if command velocity too low, robot won't move
-const double a_max = 0.1; //1m/sec^2 is 0.1 g's
+const double a_max = 1; //1m/sec^2 is 0.1 g's
 //const double a_max_decel = 0.1; // TEST
 const double omega_max = 0.5; //1 rad/sec-> about 6 seconds to rotate 1 full rev
 const double alpha_max = 0.05; //0.5 rad/sec^2-> takes 2 sec to get from rest to full omega
 const double DT = 0.050; // choose an update rate of 20Hz; go faster with actual hardware
 
-//Variables to store the estop information
-bool estop;
-bool estop_ = true; //global variable to store estop status
+//Variables to store the motorsEnabled information
+bool motorsEnabled;
+bool motorsEnabled_ = true; //global variable to store motorsEnabled status
 string check;
 
 //Variables to store the lidar alarm information
@@ -113,15 +113,15 @@ void odomCallback(const nav_msgs::Odometry& odom_rcvd) {
     ROS_INFO("odom CB: x = %f, y= %f, phi = %f, v = %f, omega = %f", odom_x_, odom_y_, odom_phi_, odom_vel_, odom_omega_);
 }
 
-//store estop information in global variable
-void estopCallback(const std_msgs::Bool::ConstPtr& estop){
-    if (estop->data == true){
-      check = "estop_off";  // means motors are ENABLED
-      estop_ = true;
+//store motorsEnabled information in global variable
+void motorsEnabledCallback(const std_msgs::Bool::ConstPtr& motorsEnabled){
+    if (motorsEnabled->data == true){
+      check = "motorsEnabled_off";  // means motors are ENABLED
+      motorsEnabled_ = true;
     }
-    else if (estop->data == false){
-      check = "estop_on";  // means motors are DISABLED
-      estop_ = false;
+    else if (motorsEnabled->data == false){
+      check = "motorsEnabled_on";  // means motors are DISABLED
+      motorsEnabled_ = false;
     }
     
 
@@ -155,14 +155,14 @@ int main(int argc, char **argv) {
     ros::NodeHandle nh; // get a ros nodehandle; standard yadda-yadda
 
     //subscribe to motors_enabled rosmsg
-    ros::Subscriber subestop = nh.subscribe("motors_enabled",1,estopCallback);
+    ros::Subscriber submotorsEnabled = nh.subscribe("motors_enabled",1,motorsEnabledCallback);
 
     //subscribe to lidar_alarm rosmsg
     ros::Subscriber sublidar = nh.subscribe("/lidar_alarm", 1, lidarCallback);
 
     //create a publisher object that can talk to ROS and issue twist messages on named topic;
     // note: this is customized for stdr robot; would need to change the topic to talk to jinx, etc.
-    ros::Publisher vel_cmd_publisher = nh.advertise<geometry_msgs::Twist>("cmd_vel", 1);
+    ros::Publisher vel_cmd_publisher = nh.advertise<geometry_msgs::Twist>("/cmd_vel", 1);
     ros::Subscriber sub = nh.subscribe("/odom", 1, odomCallback);
     ros::Rate rtimer(1 / DT); // frequency corresponding to chosen sample period DT; the main loop will run this fast
     
@@ -237,6 +237,9 @@ int main(int argc, char **argv) {
         double dist_to_go = segment_length - segment_length_done;
         double angle_to_turn = angle_rotation - delta_phi;
         double rot_direction = angle_to_turn/fabs(angle_to_turn);
+        motorsEnabled_ = true;
+        lidar_alarm_ = false;
+        soft_stop_ = false;
 
         ROS_INFO("dist travelled: %f, angle turned: %f, angle to turn: %f", segment_length_done, delta_phi, angle_to_turn);
 
@@ -270,7 +273,7 @@ int main(int argc, char **argv) {
   
 
         //how does the current velocity compare to the scheduled vel?
-        if (odom_vel_ < scheduled_vel) {  // maybe we halted, e.g. due to estop or obstacle;
+        if (odom_vel_ < scheduled_vel) {  // maybe we halted, e.g. due to motorsEnabled or obstacle;
             // may need to ramp up to v_max; do so within accel limits
             double v_test = odom_vel_ + a_max*dt_callback_; // if callbacks are slow, this could be abrupt
             // operator:  c = (a>b) ? a : b;
@@ -334,16 +337,18 @@ int main(int argc, char **argv) {
             else cmd_vel.angular.z = 0; //omega 0 if slow enough
         }
 
-        if (dist_to_go <= 0.0 || estop_ == false) { //uh-oh...went too far already! or the estop is true!
+        if (dist_to_go <= 0.0 || motorsEnabled_ == false) { //uh-oh...went too far already! or the motorsEnabled is true!
             cmd_vel.linear.x = 0.0;  //command vel=0
         }
 
-        if ((angle_to_turn <= 0.01 && angle_to_turn >= -0.01) || estop_ == false) { //we overshot, just stop
+        if ((angle_to_turn <= 0.01 && angle_to_turn >= -0.01) || motorsEnabled_ == false) { //we overshot, just stop
             cmd_vel.angular.z = 0.0;
         }
 
         vel_cmd_publisher.publish(cmd_vel); // publish the command to robot0/cmd_vel
         rtimer.sleep(); // sleep for remainder of timed iteration
+
+        ROS_INFO("Final new_cmd_vel: %f", cmd_vel.linear.x);
 
         //after finishing current move, cycle array, reinitialize starting values for next iteration
         if (dist_to_go <= 0.0 && (angle_to_turn <= 0.01 && angle_to_turn >= -0.01)) {
