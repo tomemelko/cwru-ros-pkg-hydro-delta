@@ -17,7 +17,7 @@
 #  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import roslib
-roslib.load_manifest('cwru_base')
+#roslib.load_manifest('cwru_base')
 import rospy
 
 from cwru_msgs.msg import Sonar
