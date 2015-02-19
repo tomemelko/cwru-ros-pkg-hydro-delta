@@ -10,7 +10,7 @@
 
 
 // set alarm if anything is within 0.5m of the front of robot
-const double MIN_SAFE_DISTANCE = 0.5;
+const double MIN_SAFE_DISTANCE = 2;
 const double ALLOWABLE_CLOSE_PINGS = 2;
 
 // these values to be set within the laser callback
@@ -126,7 +126,7 @@ int main(int argc, char **argv)
     lidar_alarm_publisher_ = pub;
     ros::Publisher pub2 = nh.advertise<std_msgs::Float32>("/lidar_dist", 1);
     lidar_dist_publisher_ = pub2;
-    ros::Subscriber lidar_subscriber = nh.subscribe("/robot0/laser_0", 1, laserCallback);
+    ros::Subscriber lidar_subscriber = nh.subscribe("/laser/scan", 1, laserCallback);
     //this is essentially a "while(1)" statement, except it
     // forces refreshing wakeups upon new data arrival
     // main program essentially hangs here, but it must stay alive to keep the callback function alive

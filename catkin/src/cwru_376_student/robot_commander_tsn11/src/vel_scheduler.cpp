@@ -31,12 +31,12 @@ therefore, theta = 2*atan2(qz,qw)
 #include <vel_scheduler.h>
 
 // set some dynamic limits
-const double v_max = 2.0; //1m/sec is a slow walk
-const double v_min = 1.0; // if command velocity too low, robot won't move
-const double a_max = 1; //1m/sec^2 is 0.1 g's
+const double v_max = 0.5; //1m/sec is a slow walk
+const double v_min = 0.1; // if command velocity too low, robot won't move
+const double a_max = 0.2; //1m/sec^2 is 0.1 g's
 //const double a_max_decel = 0.1; // TEST
-const double omega_max = 1.0; //1 rad/sec-> about 6 seconds to rotate 1 full rev
-const double alpha_max = 0.5; //0.5 rad/sec^2-> takes 2 sec to get from rest to full omega
+const double omega_max = 0.4; //1 rad/sec-> about 6 seconds to rotate 1 full rev
+const double alpha_max = 0.1; //0.5 rad/sec^2-> takes 2 sec to get from rest to full omega
 const double DT = 0.050; // choose an update rate of 20Hz; go faster with actual hardware
 
 //Variables to store the motorsEnabled information
@@ -267,6 +267,7 @@ double determineCmdOmega(double scheduled_omega, double rot_direction)
 
 void checkAlarms(geometry_msgs::Twist &cmd_vel, double rot_direction)
 {
+    ROS_WARN("Checking alarms...");
 	//begin decel to stop if lidar alarm or soft stop is on
 	if (lidar_alarm_ == true || soft_stop_ == true)
 	{
@@ -393,9 +394,6 @@ int main(int argc, char **argv)
         double dist_to_go = segment_length - segment_length_done;
         double angle_to_turn = angle_rotation - delta_phi;
         double rot_direction = angle_to_turn / fabs(angle_to_turn);
-        motorsEnabled_ = true;
-        lidar_alarm_ = false;
-        soft_stop_ = false;
 
         ROS_INFO("dist travelled: %f, dist to travel: %f, angle turned: %f, angle to turn: %f", segment_length_done, dist_to_go, delta_phi, angle_to_turn);
 
