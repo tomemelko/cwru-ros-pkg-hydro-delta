@@ -29,14 +29,15 @@ qw = cos(angle/2)
 therefore, theta = 2*atan2(qz,qw)
 */
 #include <vel_scheduler.h>
+#define PI 3.14159265
 
 // set some dynamic limits
-const double v_max = 0.5; //1m/sec is a slow walk
+const double v_max = 0.6; //1m/sec is a slow walk
 const double v_min = 0.1; // if command velocity too low, robot won't move
-const double a_max = 0.2; //1m/sec^2 is 0.1 g's
+const double a_max = 0.3; //1m/sec^2 is 0.1 g's
 //const double a_max_decel = 0.1; // TEST
-const double omega_max = 0.4; //1 rad/sec-> about 6 seconds to rotate 1 full rev
-const double alpha_max = 0.1; //0.5 rad/sec^2-> takes 2 sec to get from rest to full omega
+const double omega_max = 0.6; //1 rad/sec-> about 6 seconds to rotate 1 full rev
+const double alpha_max = 0.3; //0.5 rad/sec^2-> takes 2 sec to get from rest to full omega
 const double DT = 0.050; // choose an update rate of 20Hz; go faster with actual hardware
 
 //Variables to store the motorsEnabled information
@@ -55,8 +56,8 @@ bool soft_stop_ = false;  //in future add callback message
 
 
 //arrays that hold the segment and turn information for plotting the course
-double segments [] = {4.8, 0.0, 12.4, 0.0, 8.4, 0.0}; //variable to store movement segments
-double turns [] = {0.0, -3.14159 / 2, 0.0, -3.14159 / 2, 0.0, -3.14159 / 2}; //variable to store turn segments
+double segments [] = {2, 0.0, 1.0, 0.0, 2.0, 0.0}; //variable to store movement segments
+double turns [] = {0.0, PI / 2, 0.0, PI / 2, 0.0, PI / 2}; //variable to store turn segments
 int counter = 1; //counts through segment and turn arrays
 
 
@@ -70,6 +71,8 @@ double odom_omega_ = 0.0; // measured/published system yaw rate (spin)
 double odom_x_ = 0.0;
 double odom_y_ = 0.0;
 double odom_phi_ = 0.0;
+double last_odom_phi_ = 0.0;
+int rot_count_ = 0;
 double dt_odom_ = 0.0;
 ros::Time t_last_callback_;
 double dt_callback_ = 0.0;
@@ -102,8 +105,19 @@ void odomCallback(const nav_msgs::Odometry &odom_rcvd)
     double quat_z = odom_rcvd.pose.pose.orientation.z;
     double quat_w = odom_rcvd.pose.pose.orientation.w;
     // cheap conversion from quaternion to heading for planar motion
-    odom_phi_ = 2.0 * atan2(quat_z, quat_w);
+    double raw_odom_phi_ = 2.0 * atan2(quat_z, quat_w);
+    ROS_WARN("raw_odom_phi is %lf", raw_odom_phi_);
+    if ((last_odom_phi_ - raw_odom_phi_) > (1.5*PI))
+    {
+        rot_count_++;
+    }
+    else if ((last_odom_phi_ - raw_odom_phi_) < (-1.5*PI))
+    {
+        rot_count_--;
+    }
+    last_odom_phi_ = raw_odom_phi_;
 
+    odom_phi_ = (rot_count_ * 2 * PI) + raw_odom_phi_;
     // the output below could get annoying; may comment this out, but useful initially for debugging
     ROS_INFO("odom CB: x = %f, y= %f, phi = %f, v = %f, omega = %f", odom_x_, odom_y_, odom_phi_, odom_vel_, odom_omega_);
 }
@@ -113,12 +127,12 @@ void motorsEnabledCallback(const std_msgs::Bool::ConstPtr &motorsEnabled)
 {
     if (motorsEnabled->data == true)
     {
-        check = "motorsEnabled_off";  // means motors are ENABLED
+        check = "motorsEnabled_on";  // means motors are ENABLED
         motorsEnabled_ = true;
     }
     else if (motorsEnabled->data == false)
     {
-        check = "motorsEnabled_on";  // means motors are DISABLED
+        check = "motorsEnabled_off";  // means motors are DISABLED
         motorsEnabled_ = false;
     }
 
@@ -208,7 +222,7 @@ double determineCmdVel(double scheduled_vel)
 	if (odom_vel_ < scheduled_vel)
 	{
 	    // may need to ramp up to v_max; do so within accel limits
-	    double v_test = odom_vel_ + a_max * dt_callback_; // if callbacks are slow, this could be abrupt
+	    double v_test = odom_vel_ + (a_max * dt_callback_); // if callbacks are slow, this could be abrupt
 	    // operator:  c = (a>b) ? a : b;
 	    double new_cmd_vel = (v_test < scheduled_vel) ? v_test : scheduled_vel; //choose lesser of two options
 	    ROS_INFO("Ramping up velocity: New Cmd Vel: %f, Sched Vel: %f", new_cmd_vel, scheduled_vel);
@@ -220,7 +234,7 @@ double determineCmdVel(double scheduled_vel)
 	{
 	    // ramp down to the scheduled velocity.  However, scheduled velocity might already be ramping down at a_max.
 	    // need to catch up, so ramp down even faster than a_max.  Try 1.2*a_max.
-	    double v_test = odom_vel_ - 1.2 * a_max * dt_callback_; //moving too fast--try decelerating faster than nominal a_max
+	    double v_test = odom_vel_ - (1.2 * a_max * dt_callback_); //moving too fast--try decelerating faster than nominal a_max
 
 	    double new_cmd_vel = (v_test > scheduled_vel) ? v_test : scheduled_vel; // choose larger of two options...don't overshoot scheduled_vel
 
@@ -240,7 +254,7 @@ double determineCmdOmega(double scheduled_omega, double rot_direction)
 	if (fabs(odom_omega_) < fabs(scheduled_omega))
 	{
 	    //for some reason the turning speed is less than schedule
-	    double omega_test = odom_omega_ + rot_direction * alpha_max * dt_callback_;
+	    double omega_test = odom_omega_ + (rot_direction * alpha_max * dt_callback_);
 	    //create two options for turning
 	    double new_cmd_omega = (fabs(omega_test) < fabs(scheduled_omega)) ? omega_test : scheduled_omega; // choose lesser of the two turn speeds
 	    //done in order to prevent overshooting the scheduled_omega
@@ -252,7 +266,7 @@ double determineCmdOmega(double scheduled_omega, double rot_direction)
 	else if (fabs(odom_omega_) > fabs(scheduled_omega))
 	{
 	    //lets ramp down at 1.2*alpha_max in case we are already trying to decel
-	    double omega_test = rot_direction * (fabs(odom_omega_) - 1.2 * alpha_max * dt_callback_); //turning too fast, slow down faster than normal
+	    double omega_test = (rot_direction * fabs(odom_omega_)) - (1.2 * alpha_max * dt_callback_); //turning too fast, slow down faster than normal
 	    double new_cmd_omega = (fabs(omega_test) > fabs(scheduled_omega)) ? omega_test : scheduled_omega; //choose the larger of the two options, as to not overshoot scheduled_omega
 
 	    ROS_INFO("Slowing Down rotation: New cmd omega: %f; Sched omega: %f", new_cmd_omega, scheduled_omega); //debug/analysis output; can comment this out
@@ -267,7 +281,6 @@ double determineCmdOmega(double scheduled_omega, double rot_direction)
 
 void checkAlarms(geometry_msgs::Twist &cmd_vel, double rot_direction)
 {
-    ROS_WARN("Checking alarms...");
 	//begin decel to stop if lidar alarm or soft stop is on
 	if (lidar_alarm_ == true || soft_stop_ == true)
 	{
@@ -276,7 +289,7 @@ void checkAlarms(geometry_msgs::Twist &cmd_vel, double rot_direction)
 
 	    if (odom_vel_ >= .01)
 	    {
-	        cmd_vel.linear.x = odom_vel_ - a_max * dt_callback_; //decel
+	        cmd_vel.linear.x = odom_vel_ - (a_max * dt_callback_); //decel
 	    }
 
 	    else cmd_vel.linear.x = 0;  //velocity 0 if slow enough
@@ -284,7 +297,7 @@ void checkAlarms(geometry_msgs::Twist &cmd_vel, double rot_direction)
 
 	    if (fabs(odom_omega_) >= .01)
 	    {
-	        cmd_vel.angular.z = rot_direction * (fabs(odom_omega_) - alpha_max * dt_callback_); //decel
+	        cmd_vel.angular.z = (rot_direction * fabs(odom_omega_)) - (alpha_max * dt_callback_); //decel
 	    }
 
 	    else cmd_vel.angular.z = 0; //omega 0 if slow enough
@@ -306,7 +319,7 @@ int main(int argc, char **argv)
     ros::NodeHandle nh; // get a ros nodehandle; standard yadda-yadda
 
     //subscribe to motors_enabled rosmsg
-    ros::Subscriber submotorsEnabled = nh.subscribe("motors_enabled", 1, motorsEnabledCallback);
+    ros::Subscriber submotorsEnabled = nh.subscribe("/motors_enabled", 1, motorsEnabledCallback);
 
     //subscribe to lidar_alarm rosmsg
     ros::Subscriber sublidar = nh.subscribe("/lidar_alarm", 1, lidarCallback);
