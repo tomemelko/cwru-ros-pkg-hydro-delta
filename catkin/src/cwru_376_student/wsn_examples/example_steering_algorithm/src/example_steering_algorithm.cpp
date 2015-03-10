@@ -211,11 +211,13 @@ void SteeringController::my_clever_steering_algorithm() {
     steering_errs_publisher_.publish(steering_errs_); // suitable for plotting w/ rqt_plot
     //END OF DEBUG STUFF
     
-     // first idea, like an odd parabola centered about des_state values. E.g: Increase/Decrease vel exponentially the larger our error is with regard to des_state_vel     
-    //Possible problems: can explode if robot gets out of sync.
-    controller_speed = ((trip_dist_err/fabs(trip_dist_err))*(trip_dist_err^2)) + des_state_vel_; //the larger the error between des and odom, the faster/slower it goes with regard to des_state_vel_
-    controller_omega = ((heading_err/fabs(heading_err))*(heading_err^2)) + des_state_omega_; //ditto
- 
+    //**************************************************************************
+    // First idea, like an odd parabolic function centered about des_state values. E.g: Increase/Decrease vel exponentially the larger our error is with regard to des_state_vel     
+    // Possible problems: can explode if robot gets out of sync.
+    controller_speed = ((trip_dist_err/fabs(trip_dist_err))*.5*(trip_dist_err^2)) + des_state_vel_; //the larger the error between des and odom, the faster/slower it goes with regard to des_state_vel_
+    controller_omega = ((heading_err/fabs(heading_err))*.5*(heading_err^2)) + des_state_omega_; //ditto
+    
+    // Fail safe to ensure that we do not go above max omega  
     controller_omega = MAX_OMEGA*sat(controller_omega/MAX_OMEGA); // saturate omega command at specified limits
     
     // send out our very clever speed/spin commands:
