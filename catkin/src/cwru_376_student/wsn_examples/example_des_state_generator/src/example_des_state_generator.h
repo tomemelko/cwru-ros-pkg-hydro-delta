@@ -55,11 +55,40 @@ const double MAX_SPEED = 0.5; // m/sec; adjust this
 const double MAX_OMEGA = 0.5; //1.0; // rad/sec; adjust this
 const double MAX_ACCEL = 1.0; // m/sec^2; adjust this
 const double MAX_ALPHA = 1.0; // rad/sec^2; adjust this
+// *define smaller magnitude for arc speeds and accelerations 
+const double ARC_MAX_SPEED = 0.3; // m/sec; adjust this
+const double ARC_MAX_OMEGA = 0.3; //1.0; // rad/sec; adjust this
+const double ARC_MAX_ACCEL = 0.5; // m/sec^2; adjust this
+const double ARC_MAX_ALPHA = 0.5; // rad/sec^2; adjust this
 
 const double LENGTH_TOL = 0.05; // tolerance for path; adjust this
 const double HEADING_TOL = 0.05; // heading tolerance; adjust this
+const double ARC_TOL = 0.05; // heading tolerance; adjust this
 
 const double UPDATE_RATE = 50.0; // choose the desired-state publication update rate
+
+
+// compute some parameters for speed profile
+// use the names nearly the same with vel_scheduler.cpp in assignment 4
+float accelTime = MAX_SPEED / MAX_ACCEL; // supposes start from rest
+float decelTime = accelTime; 
+float dist_accel = 0.5 * MAX_ACCEL * (accelTime * accelTime); 
+float dist_decel = 0.5 * MAX_ACCEL * (decelTime * decelTime); 
+
+// compute some parameters for omega profile
+// use the names nearly the same with vel_scheduler.cpp in assignment 4
+float rotAccelTime = MAX_OMEGA / MAX_ALPHA; // supposes start from rest
+float rotDecelTime = rotAccelTime; 
+float rot_accel = 0.5 * MAX_ALPHA * (rotAccelTime * rotAccelTime);
+float rot_decel = 0.5 * MAX_ALPHA * (rotDecelTime * rotDecelTime);
+
+/*
+// compute some parameters for arc profile
+float arcAccelTime = MAX_SPEED / MAX_ACCEL; // supposes start from rest
+float decelTime = accelTime; 
+float dist_accel = 0.5 * MAX_ACCEL * (accelTime * accelTime); 
+float dist_decel = 0.5 * MAX_ACCEL * (decelTime * decelTime);
+*/
 
 // define a class, including a constructor, member variables and member functions
 
@@ -91,7 +120,7 @@ public:
     geometry_msgs::PoseStamped odom_to_map_pose(geometry_msgs::PoseStamped odom_pose); // convert a pose from odom frame to map frame   
 
 
-    //the interesting functions: how to get a new path segment and how to update the desired state
+    //the interesting functions: how to update the desired state and how to get a new path segment
     void update_des_state();
     void unpack_next_path_segment();
  
@@ -147,9 +176,10 @@ private:
     
     bool waiting_for_vertex_;
     
-    tf::TransformListener* tfListener_;
+    /*tf::TransformListener* tfListener_;
     tf::StampedTransform mapToOdom_;    
     tf::StampedTransform odomToMap_;    
+    */
 
     // PRIVATE METHODS:
     void initializeSubscribers(); // we will define some helper methods to encapsulate the gory details of initializing subscribers, publishers and services
@@ -189,7 +219,11 @@ private:
     // these should do triangular or trapezoidal velocity profiling
     // they should also be smart enough to recognize E-stops, etc.
     double compute_speed_profile();
-    double compute_omega_profile();    
+    double compute_omega_profile(); 
+    double velSpeedUp(double scheduled_vel);   
+    double velSlowDown(double current_seg_length_);
+    double rotSlowDown(bool rotRight);
+    double rotSpeedUp(double scheduled_omega); 
     
     // these are "crawler" functions.  Given a current path segment, they update desired state objects
     // and publish the resulting desired state;
@@ -198,6 +232,7 @@ private:
     // with the latest map_to_odom transform
     nav_msgs::Odometry update_des_state_lineseg();
     nav_msgs::Odometry update_des_state_spin();
+    nav_msgs::Odometry update_des_state_arc();
     nav_msgs::Odometry update_des_state_halt();
 
 }; // note: a class definition requires a semicolon at the end of the definition
