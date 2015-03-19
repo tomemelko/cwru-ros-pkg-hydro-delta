@@ -63,7 +63,8 @@ const double ARC_MAX_ALPHA = 0.5; // rad/sec^2; adjust this
 
 const double LENGTH_TOL = 0.05; // tolerance for path; adjust this
 const double HEADING_TOL = 0.05; // heading tolerance; adjust this
-const double ARC_TOL = 0.05; // heading tolerance; adjust this
+//const double ARC_TOL = 0.05; // heading tolerance; adjust this
+//const double TURN_RADIUS = 1.5; // the radius used for turning right smoothly in arc path; adjust this
 
 const double UPDATE_RATE = 50.0; // choose the desired-state publication update rate
 
@@ -197,7 +198,7 @@ private:
     // path segments
     void process_new_vertex();
         
-    //construct path segments:
+    //construct path segments: 
     // build_spin_then_line_path_segments: given two poses, p1 and p2 (in consistent reference frame),
     // construct a vector of path segments consistent with those poses;
     // for just two poses, command spin segment to reorient along path from p1 to p2, 
@@ -218,13 +219,10 @@ private:
     
     // these should do triangular or trapezoidal velocity profiling
     // they should also be smart enough to recognize E-stops, etc.
-    double compute_speed_profile();
-    double compute_omega_profile(); 
-    double velSpeedUp(double scheduled_vel);   
-    double velSlowDown(double current_seg_length_);
-    double rotSlowDown(bool rotRight);
-    double rotSpeedUp(double scheduled_omega); 
-    
+    double compute_speed_profile(double current_seg_length_to_go_, double dist_decel);
+    double compute_omega_profile(double current_seg_length_to_go_, double rot_decel, double current_seg_curvature_); 
+    double compute_arc_profile()
+
     // these are "crawler" functions.  Given a current path segment, they update desired state objects
     // and publish the resulting desired state;
     // When a segment is fully traversed, the segment type is set to HALT and the flag current_path_seg_done_ is set to true
