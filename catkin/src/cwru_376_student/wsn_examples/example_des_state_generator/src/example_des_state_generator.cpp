@@ -811,7 +811,7 @@ double DesStateGenerator::rotSlowDown(bool rotRight)
 
 
 // Robot's increased rotational velocity is decided by the scheduled slow-down omega, odometry omega, and rotational accelertation constant
-double DesStateGenerator::rotSpeedUp(double scheduled_omega)w 
+double DesStateGenerator::rotSpeedUp(double scheduled_omega) 
 {   
     double new_cmd_omega = 0.0f;
 
