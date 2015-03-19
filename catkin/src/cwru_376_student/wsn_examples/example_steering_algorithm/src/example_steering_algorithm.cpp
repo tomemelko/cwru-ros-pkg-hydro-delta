@@ -212,6 +212,7 @@ void SteeringController::my_clever_steering_algorithm() {
     //END OF DEBUG STUFF
     
     //**************************************************************************
+    // Much better controller can be designed using method described in steering_algorithm_notes.pdf on Blackboard
     // First idea, like an odd parabolic function centered about des_state values. E.g: Increase/Decrease vel exponentially the larger our error is with regard to des_state_vel     
     // Possible problems: can explode if robot gets out of sync.
     controller_speed = ((trip_dist_err/fabs(trip_dist_err))*.5*(trip_dist_err*trip_dist_err)) + des_state_vel_; //the larger the error between des and odom, the faster/slower it goes with regard to des_state_vel_

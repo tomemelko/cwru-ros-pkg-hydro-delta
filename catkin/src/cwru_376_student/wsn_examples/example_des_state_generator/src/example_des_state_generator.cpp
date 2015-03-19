@@ -761,6 +761,63 @@ double DesStateGenerator::compute_omega_profile(double current_seg_length_to_go_
     }
     ROS_INFO("Slow down scheduled omega is: %f", scheduled_omega);
     return scheduled_omega;
+<<<<<<< HEAD
+=======
+}
+
+
+// Robot's increased rotational velocity is decided by the scheduled slow-down omega, odometry omega, and rotational accelertation constant
+double DesStateGenerator::rotSpeedUp(double scheduled_omega) 
+{   
+    double new_cmd_omega = 0.0f;
+
+    //compare the current turning speed to the scheduled turning speed
+    if (fabs(odom_omega_) < fabs(scheduled_omega))
+    {
+        //for some reason the turning speed is less than schedule
+        //???change the expression which is not sure???
+        //for old one is: double omega_test = odom_omega_ + (rot_direction * alpha_max * dt_callback_);
+        double omega_test = fabs(odom_omega_) + MAX_ALPHA * dt_;
+        //create two options for turning
+        new_cmd_omega = (fabs(omega_test) < fabs(scheduled_omega)) ? omega_test : scheduled_omega; // choose lesser of the two turn speeds
+        //done in order to prevent overshooting the scheduled_omega
+        ROS_INFO("Ramping Up rotation: New cmd omega: %f, Sched Omega: %f", new_cmd_omega, scheduled_omega); //debugging information
+        return new_cmd_omega;
+    }
+    // for some reason we are traveling too fast
+    else if (fabs(odom_omega_) > fabs(scheduled_omega))
+    {
+        //lets ramp down at 1.2*alpha_max in case we are already trying to decel
+        //???change the expression which is not sure???
+        //for old one is: double omega_test = (rot_direction * fabs(odom_omega_)) - (1.2 * alpha_max * dt_callback_);
+        double omega_test = fabs(odom_omega_) - 1.2 * MAX_ALPHA * dt_; //turning too fast, slow down faster than normal
+        new_cmd_omega = (fabs(omega_test) > fabs(scheduled_omega)) ? omega_test : scheduled_omega; //choose the larger of the two options, as to not overshoot scheduled_omega
+        ROS_INFO("Slowing Down rotation: New cmd omega: %f; Sched omega: %f", new_cmd_omega, scheduled_omega); //debug/analysis output; can comment this out
+        return new_cmd_omega;
+    }
+    else
+    {
+        return scheduled_omega;//apply the scheduled turn speed if everything else is fine
+    }
+}
+
+
+// MAKE THIS BETTER!!
+
+// To achieve the max omega
+double DesStateGenerator::compute_omega_profile() 
+{
+    double rot_direction = sgn(current_seg_curvature_);
+
+    if (rot_direction != 0) 
+    {
+        bool rotRight = rot_direction;
+        double omegaProfile = rotSlowDown(rotRight);
+        omegaProfile = rotSpeedUp(omegaProfile);
+        ROS_INFO("compute_omega_profile: des_omega = %f", omegaProfile);
+        return omegaProfile; // spin in direction of closest rotation to target heading
+    }
+>>>>>>> f67034e2ca46875eb9127fc2a6c406d656abdffc
     
     /* for old code is: 
     double des_omega = sgn(current_seg_curvature_)*MAX_OMEGA;
