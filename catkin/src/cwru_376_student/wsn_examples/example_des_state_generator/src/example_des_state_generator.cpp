@@ -81,6 +81,13 @@ DesStateGenerator::DesStateGenerator(ros::NodeHandle* nodehandle) : nh_(*nodehan
     waiting_for_vertex_ = true;
     current_path_seg_done_ = true;
 
+    /*motorsEnabled_ = true; 
+    lidar_alarm_ = false; 
+    soft_stop_ = false;  
+
+    alarm_state = false;
+    last_alarm_state = false;
+*/
     last_map_pose_rcvd_ = odom_to_map_pose(odom_pose_stamped_); // treat the current odom pose as the first vertex--cast it into map coords to save
 }
 
@@ -295,6 +302,9 @@ void DesStateGenerator::process_new_vertex() {
    
     // the following will construct two path segments: spin to reorient, then lineseg to reach goal point
     vec_of_path_segs = build_spin_then_line_path_segments(start_pose_wrt_odom, goal_pose_wrt_odom.pose);
+
+    // the following will construct an arc segement based off a the coordinates, and phi given in the example_path_sender
+    // vec_of_path_segs = build_arc_segement(goal_pose_wrt_odom.pose, initial_heading, goal_heading, curvature); 
 
     // more generally, could replace the above with a segment builder that included circular arcs, etc,
     // potentially generating more path segments in the list.  
@@ -641,7 +651,7 @@ nav_msgs::Odometry DesStateGenerator::update_des_state_arc()
     current_arc_des_ = compute_arc_profile(); //USE VEL PROFILING
     
     // !!!!!!!!!!!!!!! the formula used in the next two lines should be verified
-    double TURN_RADIUS = (current_speed_des_) / (current_omega_des_); // radius = velocity / omega
+    double TURN_RADIUS = (current_speed_des_) / (current_omega_des_); // radius = velocity / omega     
     double delta_arc = TURN_RADIUS * current_omega_des_*dt_; // the length of arc = radius * theta, where theta = omega * dt_
     
     ROS_INFO("update_des_state_arc: delta_arc = %f",delta_arc);
@@ -761,63 +771,6 @@ double DesStateGenerator::compute_omega_profile(double current_seg_length_to_go_
     }
     ROS_INFO("Slow down scheduled omega is: %f", scheduled_omega);
     return scheduled_omega;
-<<<<<<< HEAD
-=======
-}
-
-
-// Robot's increased rotational velocity is decided by the scheduled slow-down omega, odometry omega, and rotational accelertation constant
-double DesStateGenerator::rotSpeedUp(double scheduled_omega) 
-{   
-    double new_cmd_omega = 0.0f;
-
-    //compare the current turning speed to the scheduled turning speed
-    if (fabs(odom_omega_) < fabs(scheduled_omega))
-    {
-        //for some reason the turning speed is less than schedule
-        //???change the expression which is not sure???
-        //for old one is: double omega_test = odom_omega_ + (rot_direction * alpha_max * dt_callback_);
-        double omega_test = fabs(odom_omega_) + MAX_ALPHA * dt_;
-        //create two options for turning
-        new_cmd_omega = (fabs(omega_test) < fabs(scheduled_omega)) ? omega_test : scheduled_omega; // choose lesser of the two turn speeds
-        //done in order to prevent overshooting the scheduled_omega
-        ROS_INFO("Ramping Up rotation: New cmd omega: %f, Sched Omega: %f", new_cmd_omega, scheduled_omega); //debugging information
-        return new_cmd_omega;
-    }
-    // for some reason we are traveling too fast
-    else if (fabs(odom_omega_) > fabs(scheduled_omega))
-    {
-        //lets ramp down at 1.2*alpha_max in case we are already trying to decel
-        //???change the expression which is not sure???
-        //for old one is: double omega_test = (rot_direction * fabs(odom_omega_)) - (1.2 * alpha_max * dt_callback_);
-        double omega_test = fabs(odom_omega_) - 1.2 * MAX_ALPHA * dt_; //turning too fast, slow down faster than normal
-        new_cmd_omega = (fabs(omega_test) > fabs(scheduled_omega)) ? omega_test : scheduled_omega; //choose the larger of the two options, as to not overshoot scheduled_omega
-        ROS_INFO("Slowing Down rotation: New cmd omega: %f; Sched omega: %f", new_cmd_omega, scheduled_omega); //debug/analysis output; can comment this out
-        return new_cmd_omega;
-    }
-    else
-    {
-        return scheduled_omega;//apply the scheduled turn speed if everything else is fine
-    }
-}
-
-
-// MAKE THIS BETTER!!
-
-// To achieve the max omega
-double DesStateGenerator::compute_omega_profile() 
-{
-    double rot_direction = sgn(current_seg_curvature_);
-
-    if (rot_direction != 0) 
-    {
-        bool rotRight = rot_direction;
-        double omegaProfile = rotSlowDown(rotRight);
-        omegaProfile = rotSpeedUp(omegaProfile);
-        ROS_INFO("compute_omega_profile: des_omega = %f", omegaProfile);
-        return omegaProfile; // spin in direction of closest rotation to target heading
-    }
->>>>>>> f67034e2ca46875eb9127fc2a6c406d656abdffc
     
     /* for old code is: 
     double des_omega = sgn(current_seg_curvature_)*MAX_OMEGA;
@@ -828,10 +781,101 @@ double DesStateGenerator::compute_omega_profile()
 
 double DesStateGenerator::compute_arc_profile()
 {
+    double scheduled_arc = 0.0f;
 
+    ROS_INFO("arc left: %f", current_seg_length_to_go_);
+
+    // use rotational phi left to decide what scheduled omega should be
+    // use some parameters in vel_scheduler.cpp in assignment 4
+    if (current_seg_length_to_go_ <= 0.01 && current_seg_length_to_go_ >= -0.01) 
+    { // achieve the goal or overshot: need to stop!
+        scheduled_arc = 0.0;
+    } 
+    // rot_decel and MAX_ALPHA have been defined in corresponding head document
+    else if (fabs(current_seg_length_to_go_) <= arc_decel) 
+    {   //robot should be braking to a halt
+        scheduled_arc = sgn(current_seg_curvature_) * sqrtf(2 * fabs(current_seg_length_to_go_) * ARC_MAX_ACCEL);
+        ROS_INFO("braking zone schedued arc is: %f", scheduled_arc);
+    } 
+    else 
+    {
+        // do not need to decelerate, so scheduled omega will be the max omega (need to accelerate or keep the max omega)
+        scheduled_arc = sgn(current_seg_curvature_) * ARC_MAX_SPEED;
+    }
+    ROS_INFO("Slow down scheduled arc is: %f", scheduled_arc);
+    return scheduled_arc;
 }
 
+//store motorsEnabled information in global variable
+/*void motorsEnabledCallback(const std_msgs::Bool::ConstPtr &motorsEnabled)
+{
+    if (motorsEnabled->data == true)
+    {
+        check = "motorsEnabled_on";  // means motors are ENABLED
+        motorsEnabled_ = true;
+    }
+    else if (motorsEnabled->data == false)
+    {
+        check = "motorsEnabled_off";  // means motors are DISABLED
+        motorsEnabled_ = false;
+    }
 
+    ROS_INFO("%s", check.c_str());
+}*/
+
+//store lidar information in global variable
+/*void lidarCallback(const std_msgs::Bool &lidar_alarm)
+{
+    if (lidar_alarm.data == true)
+    {
+        lidar_check = "lidar_alarm_on";
+        lidar_alarm_ = true;
+    }
+
+    else if (lidar_alarm.data == false)
+    {
+        lidar_check = "lidar_alarm_off";
+        lidar_alarm_ = false;
+    }
+
+    ROS_INFO("%s", lidar_check.c_str());
+}
+
+void checkAlarms(geometry_msgs::Twist &cmd_vel, double &command_velocity, double &command_omega)
+{
+    //begin decel to stop if lidar alarm or soft stop is on
+    if (lidar_alarm_ == true || soft_stop_ == true)
+    {
+        alarm_state = true;
+        ROS_WARN("LIDAR OR SOFT STOP");
+        command_velocity -= emergency_slow_down_fudge_factor * a_max * DT;
+        if (command_velocity < 0)
+        {
+            command_velocity = 0;
+        }
+        command_omega -= emergency_slow_down_fudge_factor * alpha_max * DT;
+        if (command_omega < 0)
+        {
+            command_omega = 0;
+        }
+    }
+
+    if (motorsEnabled_ == false)
+    {
+        alarm_state = true;
+        ROS_WARN("ESTOP ACTIVATED");
+        command_velocity = 0.0;
+        command_omega = 0.0;
+    }
+
+    if (alarm_state == false && last_alarm_state == true)
+    {
+        makeProfile();
+    }
+
+    last_alarm_state = alarm_state;
+}
+*/
 int main(int argc, char** argv) {
     // ROS set-ups:
     ros::init(argc, argv, "desStateGenerator"); //node name
@@ -842,9 +886,16 @@ int main(int argc, char** argv) {
     ros::Rate sleep_timer(UPDATE_RATE); //a timer for desired rate, e.g. 50Hz
     
 
+    //subscribe to motors_enabled rosmsg
+    //ros::Subscriber submotorsEnabled = nh.subscribe("/motors_enabled", 1, motorsEnabledCallback);
+
+    //subscribe to lidar_alarm rosmsg
+    //ros::Subscriber sublidar = nh.subscribe("/lidar_alarm", 1, lidarCallback);
+
+    double command_velocity = 0;
+    double command_omega = 0;
+
     //constructor will wait for a valid odom message; let's use this for our first vertex;
-
-
     ROS_INFO("main: going into main loop");
 
 
@@ -859,6 +910,7 @@ int main(int argc, char** argv) {
         // when segment is traversed, set: current_path_seg_done_ = true
 
         ros::spinOnce();
+        //checkAlarms(cmd_vel, command_velocity, command_omega);
         sleep_timer.sleep();
     }
     return 0;

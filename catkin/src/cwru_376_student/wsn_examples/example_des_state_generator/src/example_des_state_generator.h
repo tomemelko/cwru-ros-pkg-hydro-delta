@@ -57,9 +57,7 @@ const double MAX_ACCEL = 1.0; // m/sec^2; adjust this
 const double MAX_ALPHA = 1.0; // rad/sec^2; adjust this
 // *define smaller magnitude for arc speeds and accelerations 
 const double ARC_MAX_SPEED = 0.3; // m/sec; adjust this
-const double ARC_MAX_OMEGA = 0.3; //1.0; // rad/sec; adjust this
 const double ARC_MAX_ACCEL = 0.5; // m/sec^2; adjust this
-const double ARC_MAX_ALPHA = 0.5; // rad/sec^2; adjust this
 
 const double LENGTH_TOL = 0.05; // tolerance for path; adjust this
 const double HEADING_TOL = 0.05; // heading tolerance; adjust this
@@ -83,13 +81,13 @@ float rotDecelTime = rotAccelTime;
 float rot_accel = 0.5 * MAX_ALPHA * (rotAccelTime * rotAccelTime);
 float rot_decel = 0.5 * MAX_ALPHA * (rotDecelTime * rotDecelTime);
 
-/*
+
 // compute some parameters for arc profile
-float arcAccelTime = MAX_SPEED / MAX_ACCEL; // supposes start from rest
-float decelTime = accelTime; 
-float dist_accel = 0.5 * MAX_ACCEL * (accelTime * accelTime); 
-float dist_decel = 0.5 * MAX_ACCEL * (decelTime * decelTime);
-*/
+float arcAccelTime = ARC_MAX_SPEED / ARC_MAX_ACCEL; // supposes start from rest
+float arcDecelTime = arcAccelTime; 
+float arc_accel = 0.5 * ARC_MAX_ACCEL * (arcAccelTime * arcAccelTime); 
+float arc_decel = 0.5 * ARC_MAX_ACCEL * (arcDecelTime * arcDecelTime);
+
 
 // define a class, including a constructor, member variables and member functions
 
@@ -172,11 +170,30 @@ private:
     Eigen::Vector2d current_seg_xy_des_;
     double current_speed_des_;
     double current_omega_des_;
+    double current_arc_des_;
     bool current_path_seg_done_;
     
     
     bool waiting_for_vertex_;
-    
+/*
+     //Variables to store the motorsEnabled information
+    bool motorsEnabled;
+    bool motorsEnabled_; //global variable to store motorsEnabled status
+
+    string check;
+
+    //Variables to store the lidar alarm information
+    bool lidar_alarm;
+    bool lidar_alarm_; //global variable to store lidar status
+    string lidar_check;
+
+    //Soft_stop variables
+    bool soft_stop_;  //in future add callback message
+
+    bool alarm_state;
+    bool last_alarm_state;
+
+    */
     /*tf::TransformListener* tfListener_;
     tf::StampedTransform mapToOdom_;    
     tf::StampedTransform odomToMap_;    
@@ -221,7 +238,7 @@ private:
     // they should also be smart enough to recognize E-stops, etc.
     double compute_speed_profile(double current_seg_length_to_go_, double dist_decel);
     double compute_omega_profile(double current_seg_length_to_go_, double rot_decel, double current_seg_curvature_); 
-    double compute_arc_profile()
+    double compute_arc_profile();
 
     // these are "crawler" functions.  Given a current path segment, they update desired state objects
     // and publish the resulting desired state;
