@@ -1,0 +1,9 @@
+This folder contains Theodore Nowak's code for the simple_vel_scheduler with implemented estop, lidar_alarm, and soft_stop.
+
+It also contains Tom Emelko's code for the lidar_alarm that will publish to the /lidar_alarm topic when we decide there's an issue
+
+The vel_scheduler file can be run by calling "rosrun simple_robot_commander simple_vel_scheduler"
+
+The lidar_alarm file can be run by calling "rosrun simple_robot_commander simple_lidar_alarm"
+
+This code is intended to be used for Project 4 of EECS 376 with Wyatt Newman.
