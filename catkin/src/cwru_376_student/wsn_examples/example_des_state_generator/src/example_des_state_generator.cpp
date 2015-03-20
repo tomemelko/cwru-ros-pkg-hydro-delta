@@ -22,7 +22,7 @@ int ans;
 DesStateGenerator::DesStateGenerator(ros::NodeHandle* nodehandle) : nh_(*nodehandle) { // constructor
     ROS_INFO("in class constructor of DesStateGenerator");
     
-    //tfListener_ = new tf::TransformListener;  //create a transform listener
+    tfListener_ = new tf::TransformListener;  //create a transform listener
     
     // wait to start receiving valid tf transforms between map and odom:
     bool tferr=true;
@@ -33,7 +33,7 @@ DesStateGenerator::DesStateGenerator(ros::NodeHandle* nodehandle) : nh_(*nodehan
                 //try to lookup transform from target frame "odom" to source frame "map"
             //The direction of the transform returned will be from the target_frame to the source_frame. 
              //Which if applied to data, will transform data in the source_frame into the target_frame. See tf/CoordinateFrameConventions#Transform_Direction
-                //tfListener_->lookupTransform("odom", "map", ros::Time(0), mapToOdom_);
+                tfListener_->lookupTransform("odom", "map", ros::Time(0), mapToOdom_);
             } catch(tf::TransformException &exception) {
                 ROS_ERROR("%s", exception.what());
                 tferr=true;
@@ -230,14 +230,14 @@ geometry_msgs::PoseStamped DesStateGenerator::map_to_odom_pose(geometry_msgs::Po
     ROS_INFO("new subgoal: goal in map pose is (x,y) = (%f, %f)",map_pose.pose.position.x,map_pose.pose.position.y);  
     
     //now, use the tf listener to find the transform from map coords to odom coords:
-    //tfListener_->lookupTransform("odom", "map", ros::Time(0), mapToOdom_);
+    tfListener_->lookupTransform("odom", "map", ros::Time(0), mapToOdom_);
  
-    //tf_odom_goal = mapToOdom_*tf_map_goal; //here's one way to transform: operator "*" defined for class tf::Transform
+    tf_odom_goal = mapToOdom_*tf_map_goal; //here's one way to transform: operator "*" defined for class tf::Transform
 
     ROS_INFO("new subgoal: goal in odom pose is (x,y) = (%f, %f)",tf_odom_goal.x(),tf_odom_goal.y());  
 
     //let's transform the map_pose goal point into the odom frame:
-    //tfListener_->transformPose("odom", map_pose, odom_pose); 
+    tfListener_->transformPose("odom", map_pose, odom_pose); 
     //tf::TransformListener tfl;
     //tfl.transformPoint("odom",c_map_pose,odom_pose);
     //tfl.transformPose()

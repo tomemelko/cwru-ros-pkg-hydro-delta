@@ -191,13 +191,13 @@ private:
     bool soft_stop_;  //in future add callback message
 
     bool alarm_state;
-    bool last_alarm_state;
+    bool last_alarm_state;*/
 
-    */
-    /*tf::TransformListener* tfListener_;
+    
+    tf::TransformListener* tfListener_;
     tf::StampedTransform mapToOdom_;    
     tf::StampedTransform odomToMap_;    
-    */
+
 
     // PRIVATE METHODS:
     void initializeSubscribers(); // we will define some helper methods to encapsulate the gory details of initializing subscribers, publishers and services
