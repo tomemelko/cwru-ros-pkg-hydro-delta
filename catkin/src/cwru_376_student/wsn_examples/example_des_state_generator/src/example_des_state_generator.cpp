@@ -24,6 +24,11 @@ DesStateGenerator::DesStateGenerator(ros::NodeHandle* nodehandle) : nh_(*nodehan
     
     tfListener_ = new tf::TransformListener;  //create a transform listener
     
+        
+    initializeSubscribers(); // package up the messy work of creating subscribers; do this overhead in constructor
+    initializePublishers();
+    initializeServices();
+    
     // wait to start receiving valid tf transforms between map and odom:
     bool tferr=true;
     ROS_INFO("waiting for tf between map and odom...");
@@ -43,10 +48,6 @@ DesStateGenerator::DesStateGenerator(ros::NodeHandle* nodehandle) : nh_(*nodehan
     }
     ROS_INFO("tf is good");
     // from now on, tfListener will keep track of transforms
-    
-    initializeSubscribers(); // package up the messy work of creating subscribers; do this overhead in constructor
-    initializePublishers();
-    initializeServices();
 
     odom_phi_ = 1000.0; // put in impossible value for heading; test this value to make sure we have received a viable odom message
     ROS_INFO("waiting for valid odom message...");
@@ -98,7 +99,7 @@ DesStateGenerator::DesStateGenerator(ros::NodeHandle* nodehandle) : nh_(*nodehan
 
 void DesStateGenerator::initializeSubscribers() {
     ROS_INFO("Initializing Subscribers");
-    odom_subscriber_ = nh_.subscribe("/odom", 1, &DesStateGenerator::odomCallback, this); //subscribe to odom messages
+    odom_subscriber_ = nh_.subscribe("odom", 1, &DesStateGenerator::odomCallback, this); //subscribe to odom messages
     // add more subscribers here, as needed
 }
 
@@ -238,6 +239,7 @@ geometry_msgs::PoseStamped DesStateGenerator::map_to_odom_pose(geometry_msgs::Po
 
     //let's transform the map_pose goal point into the odom frame:
     tfListener_->transformPose("odom", map_pose, odom_pose); 
+    // Following 3 lines were commented out by Newman
     //tf::TransformListener tfl;
     //tfl.transformPoint("odom",c_map_pose,odom_pose);
     //tfl.transformPose()
@@ -252,9 +254,47 @@ geometry_msgs::PoseStamped DesStateGenerator::map_to_odom_pose(geometry_msgs::Po
     return odom_pose; // dummy--no conversion; when AMCL is running, use base-frame transform to convert from map to odom coords
 }
 
-//DUMMY...
+// changed from nothing to same thing as map_to_odom_pose but with map and odom roles flipped
 geometry_msgs::PoseStamped DesStateGenerator::odom_to_map_pose(geometry_msgs::PoseStamped odom_pose) {
-    return odom_pose; // dummy--no conversion; when AMCL is running, use base-frame transform to convert from map to odom coords
+    // to use tf, we need to convert coords from a geometry_msgs::Pose into a tf::Point
+    tf::Point tf_odom_goal;
+    tf_odom_goal.setX(odom_pose.pose.position.x);
+    tf_odom_goal.setY(odom_pose.pose.position.y);
+    tf_odom_goal.setZ(odom_pose.pose.position.z);
+
+    // variable for our newly transformed goal now in the map frame
+    tf::Point tf_map_goal;
+
+    // variable for newly transformed goal in map frame in highly usable PoseStamped form
+    geometry_msgs::PoseStamped map_pose;
+    const geometry_msgs::PoseStamped c_odom_pose = odom_pose;
+    ROS_INFO("new subgoal: goal in odom pose is (x,y) = (%f, %f)",odom_pose.pose.position.x,odom_pose.pose.position.y);
+
+    // lookup what the transform is from these two frames
+    tfListener_->lookupTransform("map", "odom", ros::Time(0), odomToMap_);
+
+    // Apply the transform
+    tf_map_goal = odomToMap_*tf_odom_goal;
+
+    ROS_INFO("new subgoal: goal in map pose is (x,y) = (%f, %f)",tf_map_goal.x(),tf_map_goal.y());
+
+    // Find the transform for PoseStamped coords?
+    tfListener_->transformPose("map", odom_pose, map_pose);
+    // Transforms tf into fully PoseStamped coords? Previously commented out in section above
+    //tf::TransformListener tfl;
+    //tfl.transformPoint("map",c_odom_pose,map_pose);
+    //tfl.transformPose()
+
+    ROS_INFO("new subgoal: goal in map pose is (x,y) = (%f,%f)", map_pose.pose.position.x, map_pose.pose.position.y);
+
+    ROS_INFO("map_pose frame id: ");
+     std::cout<<map_pose.header.frame_id<<std::endl;
+         if (true) {
+            std::cout<<"DEBUG:  enter 1: ";
+            std::cin>>ans;   
+        }   
+
+    return map_pose; // dummy--no conversion; when AMCL is running, use base-frame transform to convert from map to odom coords
 }
 
 // NEED TO CONVERT FROM POLYLINE PATH TO DYNAMICALLY FEASIBLE PATH SEGMENTS
@@ -280,6 +320,22 @@ void DesStateGenerator::process_new_vertex() {
     geometry_msgs::PoseStamped map_pose_stamped = path_queue_.front(); // note: we have a copy of front of queue, but we have not popped it from the queue yet
     path_queue_.pop(); // remove this subgoal from the queue
 
+    if (!path_queue_.empty()) { // make sure there is a next value in queue, so we don't get an error
+    geometry_msgs::PoseStamped second_map_pose_stamped = path_queue_.front(); // retrieve information of the next path segement in queue to see if they are co-linear
+    
+    while (convertPlanarQuat2Phi(map_pose_stamped.pose.orientation) == convertPlanarQuat2Phi(second_map_pose_stamped.pose.orientation)) { // convert these to phi so we can compare them
+        path_queue_.pop(); // remove this second_map_pose_stamped from the queue also
+        map_pose_stamped = second_map_pose_stamped;
+
+        if (!path_queue_.empty()) { // now check if there is another vector after the last
+            second_map_pose_stamped = path_queue_.front(); // retrieve information of the next path segement in queue to see if they are co-linear
+        }
+        else { // if it suddenly is empty, we need to break out of this while loop b/c we are still using the old (equivalent) orientation
+            break;
+        }
+    }
+    }
+
     // we want to build path segments to take us from the current pose to the new goal pose
     // the goal pose is transformed to odom coordinates at the last moment, to minimize odom drift issues
     geometry_msgs::Pose map_pose = map_pose_stamped.pose; //strip off the header to simplify notation
@@ -303,8 +359,22 @@ void DesStateGenerator::process_new_vertex() {
     // the following will construct two path segments: spin to reorient, then lineseg to reach goal point
     vec_of_path_segs = build_spin_then_line_path_segments(start_pose_wrt_odom, goal_pose_wrt_odom.pose);
 
+
+
+    //BEGIN LOGIC FOR BUILDING THE ARC
+
+    // std::vector<cwru_msgs::PathSegment> vec_of_arc_path_segs; // container of arc path segements to be built
+
+    // double delta_phi = convertPlanarQuat2Phi(goal_pose_wrt_odom.pose.orientation)-convertPlanarQuat2Phi(start_pose_wrt_odom.pose.orientation);
+
+
+    // vec_of_arc_path_segs = build_arc_segment(xxxx, start_pose_wrt_odom.pose.orientation, goal_pose_wrt_odom.pose.orientation, sgn(delta_phi)/delta_phi);
+
+    // ***********************************************
     // the following will construct an arc segement based off a the coordinates, and phi given in the example_path_sender
-    // vec_of_path_segs = build_arc_segement(goal_pose_wrt_odom.pose, initial_heading, goal_heading, curvature); 
+    // Need to calculate the center of circle and curvature here? Or just take necessary values into build_arc_segement
+    // vec_of_path_segs = build_arc_segement(goal_pose_wrt_odom.pose.position, start_pose_wrt_odom.pose.orientation, goal_pose_wrt_odom.pose.orientation, curvature); 
+    // ***********************************************
 
     // more generally, could replace the above with a segment builder that included circular arcs, etc,
     // potentially generating more path segments in the list.  

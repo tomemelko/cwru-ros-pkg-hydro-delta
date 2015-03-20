@@ -74,7 +74,7 @@ SteeringController::SteeringController(ros::NodeHandle* nodehandle):nh_(*nodehan
 //member helper function to set up subscribers;
 void SteeringController::initializeSubscribers() {
     ROS_INFO("Initializing Subscribers: odom and desState");
-    odom_subscriber_ = nh_.subscribe("/odom", 1, &SteeringController::odomCallback, this); //subscribe to odom messages
+    odom_subscriber_ = nh_.subscribe("odom", 1, &SteeringController::odomCallback, this); //subscribe to odom messages
     // add more subscribers here, as needed
     des_state_subscriber_ = nh_.subscribe("/desState", 1, &SteeringController::desStateCallback, this); // for desired state messages
 }
