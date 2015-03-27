@@ -88,6 +88,12 @@ float arcDecelTime = arcAccelTime;
 float arc_accel = 0.5 * ARC_MAX_ACCEL * (arcAccelTime * arcAccelTime); 
 float arc_decel = 0.5 * ARC_MAX_ACCEL * (arcDecelTime * arcDecelTime);
 
+// Alarms global variables
+bool lidar_alarm_ = false;
+bool soft_stop_ = false;
+bool motorsEnabled_ = true;
+std::string check;
+std::string lidar_check;
 
 // define a class, including a constructor, member variables and member functions
 
@@ -131,6 +137,8 @@ private:
     ros::NodeHandle nh_; // we will need this, to pass between "main" and constructor
     // some objects to support subscriber, service, and publisher
     ros::Subscriber odom_subscriber_; //these will be set up within the class constructor, hiding these ugly details
+    ros::Subscriber motorsEnabled_subscriber_;
+    ros::Subscriber lidar_subscriber_;
     ros::ServiceServer append_path_; // service to receive a path message and append the poses to a queue of poses
     ros::ServiceServer flush_path_; //service to clear out the current queue of path points
     ros::Publisher des_state_publisher_; // we will publish desired states using this object   
@@ -173,6 +181,9 @@ private:
     double current_arc_des_;
     bool current_path_seg_done_;
     
+    // lidar private variables
+    double lidar_scheduled_vel;
+    double lidar_scheduled_omega;
     
     bool waiting_for_vertex_;
 /*
@@ -206,7 +217,9 @@ private:
 
     //prototypes for subscription callbacks
     void odomCallback(const nav_msgs::Odometry& odom_rcvd);
-    
+    void motorsEnabledCallback(const std_msgs::Bool::ConstPtr &motorsEnabled);
+    void lidarCallback(const std_msgs::Bool &lidar_alarm);
+
     //prototypes for service callbacks 
     bool flushPathCallback(cwru_srv::simple_bool_service_messageRequest& request, cwru_srv::simple_bool_service_messageResponse& response);
     bool appendPathCallback(cwru_srv::path_service_messageRequest& request, cwru_srv::path_service_messageResponse& response);
@@ -239,6 +252,8 @@ private:
     double compute_speed_profile(double current_seg_length_to_go_, double dist_decel);
     double compute_omega_profile(double current_seg_length_to_go_, double rot_decel, double current_seg_curvature_); 
     double compute_arc_profile();
+    double compute_lidar_vel(double scheduled_vel, double a_max, double DT);
+    double compute_lidar_omega(double scheduled_omega, double alpha_max, double DT);
 
     // these are "crawler" functions.  Given a current path segment, they update desired state objects
     // and publish the resulting desired state;

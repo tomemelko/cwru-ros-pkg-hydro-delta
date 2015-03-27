@@ -100,6 +100,8 @@ DesStateGenerator::DesStateGenerator(ros::NodeHandle* nodehandle) : nh_(*nodehan
 void DesStateGenerator::initializeSubscribers() {
     ROS_INFO("Initializing Subscribers");
     odom_subscriber_ = nh_.subscribe("/odom", 1, &DesStateGenerator::odomCallback, this); //subscribe to odom messages
+    motorsEnabled_subscriber_ = nh_.subscribe("/motors_enabled", 1, &DesStateGenerator::motorsEnabledCallback, this);
+    lidar_subscriber_ = nh_.subscribe("/lidar_alarm", 1, &DesStateGenerator::lidarCallback, this);
     // add more subscribers here, as needed
 }
 
@@ -140,6 +142,42 @@ void DesStateGenerator::odomCallback(const nav_msgs::Odometry& odom_rcvd) {
     odom_quat_ = odom_rcvd.pose.pose.orientation;
     //odom publishes orientation as a quaternion.  Convert this to a simple heading
     odom_phi_ = convertPlanarQuat2Phi(odom_quat_); // cheap conversion from quaternion to heading for planar motion
+}
+
+void DesStateGenerator::motorsEnabledCallback(const std_msgs::Bool::ConstPtr &motorsEnabled)
+{
+
+    if (motorsEnabled->data == true)
+    {
+        check = "motorsEnabled_on";  // means motors are ENABLED
+        motorsEnabled_ = true;
+    }
+    else if (motorsEnabled->data == false)
+    {
+        check = "motorsEnabled_off";  // means motors are DISABLED
+        motorsEnabled_ = false;
+    }
+
+    ROS_INFO("%s", check.c_str());
+}
+
+//store lidar information in global variable
+void DesStateGenerator::lidarCallback(const std_msgs::Bool &lidar_alarm)
+{
+
+    if (lidar_alarm.data == true)
+    {
+        lidar_check = "lidar_alarm_on";
+        lidar_alarm_ = true;
+    }
+
+    else if (lidar_alarm.data == false)
+    {
+        lidar_check = "lidar_alarm_off";
+        lidar_alarm_ = false;
+    }
+
+    ROS_INFO("%s", lidar_check.c_str());
 }
 
 //member function implementation for a service callback function
@@ -629,8 +667,19 @@ nav_msgs::Odometry DesStateGenerator::update_des_state_lineseg()
     // need to update these values:
     //    current_seg_length_to_go_, current_seg_phi_des_, current_seg_xy_des_ 
     //    current_speed_des_, current_omega_des_
-     
-    current_speed_des_ = compute_speed_profile(current_seg_length_to_go_, dist_decel); //USE VEL PROFILING
+    if (motorsEnabled_ == false)
+    {
+        current_speed_des_ = 0;
+    }
+    else if (lidar_alarm_ == true || soft_stop_ == true)
+    {
+        current_speed_des_ = compute_lidar_vel(lidar_scheduled_vel, MAX_ACCEL, dt_);
+    }
+    else
+    {
+        current_speed_des_ = compute_speed_profile(current_seg_length_to_go_, dist_decel); //USE VEL PROFILING
+    }
+
     current_omega_des_ = 0.0; // this value will not change during lineseg motion
     current_seg_phi_des_ = current_seg_init_tan_angle_; // this value will not change during lineseg motion
     
@@ -675,8 +724,20 @@ nav_msgs::Odometry DesStateGenerator::update_des_state_spin()
     //    current_speed_des_, current_omega_des_
     current_seg_xy_des_ = current_seg_ref_point_; // this value will not change during spin-in-place
     current_speed_des_ = 0.0; // also unchanging
+
+    if (motorsEnabled_ == false)
+    {
+        current_omega_des_ = 0;
+    }
+    else if (lidar_alarm_ == true || soft_stop_ == true)
+    {
+        current_omega_des_ = compute_lidar_omega(lidar_scheduled_omega, MAX_ALPHA, dt_);
+    }
+    else
+    {
     current_omega_des_ = compute_omega_profile(current_seg_length_to_go_, rot_decel, current_seg_curvature_); //USE VEL PROFILING 
-    
+    }
+
     double delta_phi = current_omega_des_*dt_; //incremental rotation--could be + or -
     ROS_INFO("update_des_state_spin: delta_phi = %f",delta_phi);
     current_seg_length_to_go_ -= fabs(delta_phi); // decrement the (absolute) distance (rotation) to go
@@ -878,76 +939,35 @@ double DesStateGenerator::compute_arc_profile()
     return scheduled_arc;
 }
 
-//store motorsEnabled information in global variable
-/*void motorsEnabledCallback(const std_msgs::Bool::ConstPtr &motorsEnabled)
+double DesStateGenerator::compute_lidar_vel(double scheduled_vel, double a_max, double DT)
 {
-    if (motorsEnabled->data == true)
-    {
-        check = "motorsEnabled_on";  // means motors are ENABLED
-        motorsEnabled_ = true;
-    }
-    else if (motorsEnabled->data == false)
-    {
-        check = "motorsEnabled_off";  // means motors are DISABLED
-        motorsEnabled_ = false;
-    }
+    double emergency_slow_down_fudge_factor = 2;
 
-    ROS_INFO("%s", check.c_str());
-}*/
 
-//store lidar information in global variable
-/*void lidarCallback(const std_msgs::Bool &lidar_alarm)
-{
-    if (lidar_alarm.data == true)
-    {
-        lidar_check = "lidar_alarm_on";
-        lidar_alarm_ = true;
-    }
+        scheduled_vel -= emergency_slow_down_fudge_factor * a_max * DT;
+        if (scheduled_vel < 0)
+        {
+            scheduled_vel = 0;
+        }
 
-    else if (lidar_alarm.data == false)
-    {
-        lidar_check = "lidar_alarm_off";
-        lidar_alarm_ = false;
-    }
-
-    ROS_INFO("%s", lidar_check.c_str());
+        lidar_scheduled_vel = scheduled_vel;
+        return scheduled_vel;
 }
 
-void checkAlarms(geometry_msgs::Twist &cmd_vel, double &command_velocity, double &command_omega)
+double DesStateGenerator::compute_lidar_omega(double scheduled_omega, double alpha_max, double DT)
 {
-    //begin decel to stop if lidar alarm or soft stop is on
-    if (lidar_alarm_ == true || soft_stop_ == true)
-    {
-        alarm_state = true;
-        ROS_WARN("LIDAR OR SOFT STOP");
-        command_velocity -= emergency_slow_down_fudge_factor * a_max * DT;
-        if (command_velocity < 0)
+    double emergency_slow_down_fudge_factor = 2;
+
+        scheduled_omega -= emergency_slow_down_fudge_factor*alpha_max*DT;
+        if (scheduled_omega < 0)
         {
-            command_velocity = 0;
+            scheduled_omega = 0;
         }
-        command_omega -= emergency_slow_down_fudge_factor * alpha_max * DT;
-        if (command_omega < 0)
-        {
-            command_omega = 0;
-        }
-    }
 
-    if (motorsEnabled_ == false)
-    {
-        alarm_state = true;
-        ROS_WARN("ESTOP ACTIVATED");
-        command_velocity = 0.0;
-        command_omega = 0.0;
-    }
-
-    if (alarm_state == false && last_alarm_state == true)
-    {
-        makeProfile();
-    }
-
-    last_alarm_state = alarm_state;
+        lidar_scheduled_omega = scheduled_omega;
+        return scheduled_omega;
 }
-*/
+
 int main(int argc, char** argv) {
     // ROS set-ups:
     ros::init(argc, argv, "desStateGenerator"); //node name
