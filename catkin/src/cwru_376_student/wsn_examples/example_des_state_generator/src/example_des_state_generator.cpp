@@ -230,10 +230,12 @@ geometry_msgs::PoseStamped DesStateGenerator::map_to_odom_pose(geometry_msgs::Po
     const geometry_msgs::PoseStamped c_map_pose = map_pose;
     ROS_INFO("new subgoal: goal in map pose is (x,y) = (%f, %f)",map_pose.pose.position.x,map_pose.pose.position.y);  
     
-    //now, use the tf listener to find the transform from map coords to odom coords:
-    tfListener_->lookupTransform("/odom", "map", ros::Time(0), mapToOdom_);
- 
-    tf_odom_goal = mapToOdom_*tf_map_goal; //here's one way to transform: operator "*" defined for class tf::Transform
+    // now, use the tf listener to find the transform from map coords to odom coords:
+    // Do we even need this line if we are taking out the last line???
+    // tfListener_->lookupTransform("/odom", "map", ros::Time(0), mapToOdom_);
+    
+    // we are actually double transforming: only use one (According to Allah)
+    // tf_odom_goal = mapToOdom_*tf_map_goal; //here's one way to transform: operator "*" defined for class tf::Transform
 
     ROS_INFO("new subgoal: goal in odom pose is (x,y) = (%f, %f)",tf_odom_goal.x(),tf_odom_goal.y());  
 
