@@ -75,12 +75,12 @@ int main(int argc, char** argv)
     trajectory_point2.positions.clear();  
     
     new_trajectory.points.clear();
-    new_trajectory.joint_names.push_back("joint1");
-    new_trajectory.joint_names.push_back("joint2");
-    new_trajectory.joint_names.push_back("joint3");
-    new_trajectory.joint_names.push_back("joint4");
-    new_trajectory.joint_names.push_back("joint5");
-    new_trajectory.joint_names.push_back("joint6");   
+    new_trajectory.joint_names.push_back("joint_1");
+    new_trajectory.joint_names.push_back("joint_2");
+    new_trajectory.joint_names.push_back("joint_3");
+    new_trajectory.joint_names.push_back("joint_4");
+    new_trajectory.joint_names.push_back("joint_5");
+    new_trajectory.joint_names.push_back("joint_6");   
     
     //specify two points: initially, all home angles
     for (int ijnt=0;ijnt<6;ijnt++) {
@@ -90,11 +90,11 @@ int main(int argc, char** argv)
     }
     //ros::Duration t_from_start(0); //initialize duration to 0
     double t=0.0;
-    double dt = 3;          
+    //double dt = 3;          
     trajectory_point1.time_from_start =    ros::Duration(0);   
-    trajectory_point2.time_from_start =    ros::Duration(2);  
+    //trajectory_point2.time_from_start =    ros::Duration(2);  
     new_trajectory.points.push_back(trajectory_point1); // add this single trajectory point to the trajectory vector   
-    new_trajectory.points.push_back(trajectory_point2); // add this single trajectory point to the trajectory vector      
+    //new_trajectory.points.push_back(trajectory_point2); // add this single trajectory point to the trajectory vector      
     new_trajectory.header.stamp = ros::Time::now();      
     
     ros::Rate sleep_timer(1.0); //1Hz update rate
@@ -120,7 +120,7 @@ int main(int argc, char** argv)
    qvec<<0,0,0,0,0,0;
    int nsolns=0;
    int nlayer = 0;
-   for (double y_var = -0.4; y_var<0.4; y_var+=0.02) {
+   for (double y_var = -0.4; y_var<0.4; y_var+=0.01) {
         p[0] = x_des;
         p[1]=  y_var;
         p[2] = z_des;
@@ -169,7 +169,8 @@ int main(int argc, char** argv)
    
 
    // try to execute the plan:
-     dt = 0.4;
+     double dt = 0.4;
+     //t+= 5.0; // go from home to first point in N sec; for simu, this does not behave same as on actual robot;
    for (int ilayer=0;ilayer<nlayer;ilayer++)
    {
       qvec = optimal_path[ilayer];
