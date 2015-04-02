@@ -216,8 +216,13 @@ void SteeringController::my_clever_steering_algorithm() {
     // First idea, like an odd parabolic function centered about des_state values. E.g: Increase/Decrease vel exponentially the larger our error is with regard to des_state_vel     
     // Possible problems: can explode if robot gets out of sync.
     controller_speed = ((trip_dist_err/fabs(trip_dist_err))*.5*(trip_dist_err*trip_dist_err)) + des_state_vel_; //the larger the error between des and odom, the faster/slower it goes with regard to des_state_vel_
+    if (fabs(controller_speed) >= MAX_SPEED + .1)
+        controller_speed = (trip_dist_err/fabs(trip_dist_err))*(MAX_SPEED +.1);
+
     controller_omega = ((heading_err/fabs(heading_err))*.5*(heading_err*heading_err)) + des_state_omega_; //ditto
-    
+    if (fabs(controller_omega) >= MAX_OMEGA + .1)
+        controller_omega = (heading_err/fabs(heading_err))*(MAX_OMEGA + .1);
+
     // Fail safe to ensure that we do not go above max omega  
     controller_omega = MAX_OMEGA*sat(controller_omega/MAX_OMEGA); // saturate omega command at specified limits
     
