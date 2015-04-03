@@ -160,10 +160,14 @@ int main(int argc, char** argv) {
   
     
     int nsolns;
+   
     
     while(ros::ok()) {
             ros::spinOnce();
             if (g_trigger) {
+                double smallest_sum = 10000;
+                double current_sum = 0;
+                int index_of_smallest_sum = 0;
                 // ooh!  excitement time!  got a new tool pose goal!
                 g_trigger=false; // reset the trigger
                 //is this point reachable?
@@ -172,16 +176,63 @@ int main(int argc, char** argv) {
                 cout<<"R des DH: "<<endl;
                 cout<<A_flange_des_DH.linear()<<endl;
                 nsolns = ik_solver.ik_solve(A_flange_des_DH);
+                ROS_INFO("using %d index",index_of_smallest_sum);
                 ROS_INFO("there are %d solutions",nsolns);
 
-                if (nsolns>0) {      
-                    ik_solver.get_solns(q6dof_solns);  
-                    qvec = q6dof_solns[0]; // arbitrarily choose first soln                    
+               
+
+                if (nsolns == 1)  //if only one solution, then use that solution
+                {
+                    ik_solver.get_solns(q6dof_solns);
+                    qvec = q6dof_solns[0];
                     stuff_trajectory(qvec,new_trajectory);
- 
+
                         pub.publish(new_trajectory);
                 }
+                else if (nsolns > 1) 
+                {     //pick solution with smallest angles abby should move
+                    ik_solver.get_solns(q6dof_solns);  
+
+                    for(int i = 0; i < nsolns; i++)
+                    {
+                        for(int j = 0; j < 6; j++)
+                            {
+                                current_sum += abs(q6dof_solns[i](j,0)) * ((j+1)*20);
+                            }
+                        if(i == 0)
+                        {
+                            smallest_sum = current_sum;  //go ahead and make the first solution the smallest soluion
+                        }
+                        else
+                        {
+                            if(current_sum < smallest_sum) 
+                            {
+                                smallest_sum = current_sum;
+                                index_of_smallest_sum = i;  //keep track of which index has the smallest sum
+                            }
+                        }
+                    }               
+                    qvec = q6dof_solns[index_of_smallest_sum];
+                    
+                    stuff_trajectory(qvec,new_trajectory);
+                   
+
+                        pub.publish(new_trajectory);
+                    
+                }
+
+                
+                /*if (nsolns>0) {
+                    ik_solver.get_solns(q6dof_solns);
+                    qvec = q6dof_solns[0]; // arbitrarily choose first soln
+                    stuff_trajectory(qvec,new_trajectory);
+
+                        pub.publish(new_trajectory);
+                    
+                }
+                */
             }
+            
             sleep_timer.sleep();    
             
     }
