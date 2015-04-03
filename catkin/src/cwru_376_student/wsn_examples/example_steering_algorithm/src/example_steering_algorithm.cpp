@@ -48,7 +48,6 @@ SteeringController::SteeringController(ros::NodeHandle* nodehandle):nh_(*nodehan
     }
     ROS_INFO("tf is good");
     // from now on, tfListener will keep track of transforms from map frame to target frame
-    
     //initialize desired state, in case this is not yet being published adequately
     des_state_ = current_odom_;  // use the current odom state
     // but make sure the speed/spin commands are set to zero

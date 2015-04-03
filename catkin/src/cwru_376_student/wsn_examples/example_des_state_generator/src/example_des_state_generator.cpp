@@ -270,27 +270,33 @@ geometry_msgs::PoseStamped DesStateGenerator::map_to_odom_pose(geometry_msgs::Po
     
     // now, use the tf listener to find the transform from map coords to odom coords:
     // Do we even need this line if we are taking out the last line???
-    // tfListener_->lookupTransform("/odom", "map", ros::Time(0), mapToOdom_);
+    tfListener_->lookupTransform("/odom", "map", ros::Time(0), mapToOdom_);
     
-    // we are actually double transforming: only use one (According to Allah)
-    // tf_odom_goal = mapToOdom_*tf_map_goal; //here's one way to transform: operator "*" defined for class tf::Transform
+    // we must use this tf or the other (other throws error) b/c we cannot run two tf at once
+    tf_odom_goal = mapToOdom_*tf_map_goal; //here's one way to transform: operator "*" defined for class tf::Transform
 
     ROS_INFO("new subgoal: goal in odom pose is (x,y) = (%f, %f)",tf_odom_goal.x(),tf_odom_goal.y());  
 
     //let's transform the map_pose goal point into the odom frame:
-    tfListener_->transformPose("/odom", map_pose, odom_pose); 
+    //tfListener_->transformPose("/odom", map_pose, odom_pose); 
     // Following 3 lines were commented out by Newman
     //tf::TransformListener tfl;
     //tfl.transformPoint("odom",c_map_pose,odom_pose);
     //tfl.transformPose()
     
-     ROS_INFO("new subgoal: goal in odom pose is (x,y) = (%f, %f)",odom_pose.pose.position.x,odom_pose.pose.position.y);
+    //ROS_INFO("new subgoal: goal in odom pose is (x,y) = (%f, %f)",odom_pose.pose.position.x,odom_pose.pose.position.y);
+
+     odom_pose.header.frame_id = "odom";
+     odom_pose.pose.position.x = tf_odom_goal.x();
+     odom_pose.pose.position.y = tf_odom_goal.y();
+     odom_pose.pose.position.z = tf_odom_goal.z();
+
      ROS_INFO("odom_pose frame id: ");
-     std::cout<<odom_pose.header.frame_id<<std::endl;
+     /*std::cout<<odom_pose.header.frame_id<<std::endl;
          if (true) {
             std::cout<<"DEBUG:  enter 1: ";
             std::cin>>ans;   
-        }    
+        }    */
     return odom_pose; // dummy--no conversion; when AMCL is running, use base-frame transform to convert from map to odom coords
 }
 
@@ -319,21 +325,27 @@ geometry_msgs::PoseStamped DesStateGenerator::odom_to_map_pose(geometry_msgs::Po
     ROS_INFO("new subgoal: goal in map pose is (x,y) = (%f, %f)",tf_map_goal.x(),tf_map_goal.y());
 
     // Find the transform for PoseStamped coords?
-    tfListener_->transformPose("map", odom_pose, map_pose);
+    //tfListener_->transformPose("map", odom_pose, map_pose);
     // Transforms tf into fully PoseStamped coords? Previously commented out in section above
     //tf::TransformListener tfl;
     //tfl.transformPoint("map",c_odom_pose,map_pose);
     //tfl.transformPose()
 
-    ROS_INFO("new subgoal: goal in map pose is (x,y) = (%f,%f)", map_pose.pose.position.x, map_pose.pose.position.y);
+    //ROS_INFO("new subgoal: goal in map pose is (x,y) = (%f,%f)", map_pose.pose.position.x, map_pose.pose.position.y);
+
+    // the above transform is throwing a tf2::InvalidArgumentException and therefore to make the prior tf work we must push the data back into a posestamped message
+    map_pose.header.frame_id = "map";
+    map_pose.pose.position.x = tf_map_goal.x();
+    map_pose.pose.position.y = tf_map_goal.y();
+    map_pose.pose.position.z = tf_map_goal.z();
+
 
     ROS_INFO("map_pose frame id: ");
-     std::cout<<map_pose.header.frame_id<<std::endl;
+    /* std::cout<<map_pose.header.frame_id<<std::endl;
          if (true) {
             std::cout<<"DEBUG:  enter 1: ";
             std::cin>>ans;   
-        }   
-
+        }   */
     return map_pose; // dummy--no conversion; when AMCL is running, use base-frame transform to convert from map to odom coords
 }
 
@@ -484,10 +496,10 @@ cwru_msgs::PathSegment DesStateGenerator::build_spin_in_place_segment(Eigen::Vec
     spin_path_segment.ref_point.y = v1(1);    
         
     ROS_INFO("seg_length = %f",spin_path_segment.seg_length);
-    if (DEBUG_MODE) {
+   /* if (DEBUG_MODE) {
         std::cout<<"enter 1: ";
         std::cin>>ans;   
-    }
+    }*/
     return  spin_path_segment;
 }
 
@@ -537,11 +549,11 @@ cwru_msgs::PathSegment DesStateGenerator::build_line_segment(Eigen::Vector2d v1,
     ROS_INFO("new line seg_length = %f",line_path_segment.seg_length);
     ROS_INFO("heading: %f",des_heading);
         
-    if (DEBUG_MODE) {
+   /* if (DEBUG_MODE) {
         std::cout<<"enter 1: ";
         std::cin>>ans;   
     }
-        
+      */  
     return  line_path_segment;
 }
 
@@ -618,10 +630,10 @@ void DesStateGenerator::unpack_next_path_segment() {
             current_seg_type_=HALT;
             
     }
-    if (DEBUG_MODE) {
+    /*if (DEBUG_MODE) {
         std::cout<<"enter 1: ";
         std::cin>>ans;   
-    }
+    }*/
     // we are ready to execute this new segment, so enable it:
     current_path_seg_done_ = false;
 }
