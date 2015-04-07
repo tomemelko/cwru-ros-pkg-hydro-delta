@@ -176,7 +176,7 @@ int main(int argc, char** argv) {
                 cout<<"R des DH: "<<endl;
                 cout<<A_flange_des_DH.linear()<<endl;
                 nsolns = ik_solver.ik_solve(A_flange_des_DH);
-                ROS_INFO("using %d index",index_of_smallest_sum);
+               
                 ROS_INFO("there are %d solutions",nsolns);
 
                
@@ -197,7 +197,7 @@ int main(int argc, char** argv) {
                     {
                         for(int j = 0; j < 6; j++)
                             {
-                                current_sum += abs(q6dof_solns[i](j,0)) * ((j+1)*20);
+                                current_sum += abs(q6dof_solns[i](j,0)) * ((6-j)*20);
                             }
                         if(i == 0)
                         {
@@ -220,6 +220,7 @@ int main(int argc, char** argv) {
                         pub.publish(new_trajectory);
                     
                 }
+                 ROS_INFO("using %d index",index_of_smallest_sum);
 
                 
                 /*if (nsolns>0) {
