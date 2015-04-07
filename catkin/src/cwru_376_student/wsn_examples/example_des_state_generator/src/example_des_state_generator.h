@@ -66,7 +66,6 @@ const double HEADING_TOL = 0.05; // heading tolerance; adjust this
 
 const double UPDATE_RATE = 50.0; // choose the desired-state publication update rate
 
-
 // compute some parameters for speed profile
 // use the names nearly the same with vel_scheduler.cpp in assignment 4
 float accelTime = MAX_SPEED / MAX_ACCEL; // supposes start from rest

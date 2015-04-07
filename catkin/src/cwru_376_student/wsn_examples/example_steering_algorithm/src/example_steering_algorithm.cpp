@@ -218,10 +218,12 @@ void SteeringController::my_clever_steering_algorithm() {
     if (fabs(controller_speed) >= MAX_SPEED + .1)
         controller_speed = (trip_dist_err/fabs(trip_dist_err))*(MAX_SPEED +.1);
 
-    controller_omega = ((heading_err/fabs(heading_err))*.5*(heading_err*heading_err)) + des_state_omega_; //ditto
+    controller_omega = MAX_OMEGA*sat(K_phi*((-1*(3.14159/2))*sat(-1*lateral_err/d_thresh) + heading_err));    
+
+   /* controller_omega = ((heading_err/fabs(heading_err))*.5*(heading_err*heading_err)) + des_state_omega_; //ditto
     if (fabs(controller_omega) >= MAX_OMEGA + .1)
         controller_omega = (heading_err/fabs(heading_err))*(MAX_OMEGA + .1);
-
+    */
     // Fail safe to ensure that we do not go above max omega  
     controller_omega = MAX_OMEGA*sat(controller_omega/MAX_OMEGA); // saturate omega command at specified limits
     
