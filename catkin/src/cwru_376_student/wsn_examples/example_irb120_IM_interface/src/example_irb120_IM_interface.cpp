@@ -45,6 +45,7 @@ void markerListenerCB(
     g_R = g_quat.matrix();
 }
 
+//storing current position into g_q_state
 void jointStateCB(
 const sensor_msgs::JointStatePtr &js_msg) {
     
@@ -72,12 +73,13 @@ bool triggerService(cwru_srv::simple_bool_service_messageRequest& request, cwru_
 //command robot to move to "qvec" using a trajectory message, sent via ROS-I
 void stuff_trajectory( Vectorq6x1 qvec, trajectory_msgs::JointTrajectory &new_trajectory) {
     
+    //creating new variables, so three total trajectories
     trajectory_msgs::JointTrajectoryPoint trajectory_point1;
     trajectory_msgs::JointTrajectoryPoint trajectory_point2; 
      
     
-    new_trajectory.points.clear();
-    new_trajectory.joint_names.push_back("joint_1");
+    new_trajectory.points.clear(); //clear points in the new trajectory
+    new_trajectory.joint_names.push_back("joint_1"); //naming the joints? why?
     new_trajectory.joint_names.push_back("joint_2");
     new_trajectory.joint_names.push_back("joint_3");
     new_trajectory.joint_names.push_back("joint_4");
@@ -86,26 +88,31 @@ void stuff_trajectory( Vectorq6x1 qvec, trajectory_msgs::JointTrajectory &new_tr
 
     new_trajectory.header.stamp = ros::Time::now();  
     
+    //clear positions in these trajectories
     trajectory_point1.positions.clear();    
     trajectory_point2.positions.clear(); 
     //fill in the points of the trajectory: initially, all home angles
     for (int ijnt=0;ijnt<6;ijnt++) {
         trajectory_point1.positions.push_back(g_q_state[ijnt]); // stuff in position commands for 6 joints
         //should also fill in trajectory_point.time_from_start
-        trajectory_point2.positions.push_back(0.0); // stuff in position commands for 6 joints        
+        trajectory_point2.positions.push_back(0.0); // stuff in position commands for 6 joints 
+
     }
+
+    // fill in the target pose: really should fill in a sequence of poses leading to this goal
+    
+    for (int ijnt=0;ijnt<6;ijnt++) {
+            trajectory_point2.positions[ijnt] = qvec[ijnt] + g_q_state[ijnt];
+    } 
+
+    //tell robot be at the final position at this time, but we want to give it multiple time durations as it is moving, creating a trapezoidal profile
     trajectory_point1.time_from_start =    ros::Duration(0);  
-    trajectory_point2.time_from_start =    ros::Duration(2.0);      
+    //trajectory_point2.time_from_start =    ros::Duration(2.0); 
+    trajectory_point2.time_from_start =    ros::Duration(6.0);  //changed from 4.0 to 6.0     
 
     // start from home pose... really, should should start from current pose!
     new_trajectory.points.push_back(trajectory_point1); // add this single trajectory point to the trajectory vector   
-    new_trajectory.points.push_back(trajectory_point2); // quick hack--return to home pose
-    
-    // fill in the target pose: really should fill in a sequence of poses leading to this goal
-   trajectory_point2.time_from_start =    ros::Duration(4.0);  
-    for (int ijnt=0;ijnt<6;ijnt++) {
-            trajectory_point2.positions[ijnt] = qvec[ijnt];
-    }  
+    //new_trajectory.points.push_back(trajectory_point2); // quick hack--return to home pose
 
     new_trajectory.points.push_back(trajectory_point2); // append this point to trajectory
 }
