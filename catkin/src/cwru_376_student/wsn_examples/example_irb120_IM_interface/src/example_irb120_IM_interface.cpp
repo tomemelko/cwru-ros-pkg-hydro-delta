@@ -211,7 +211,9 @@ int main(int argc, char** argv) {
                                 index_of_smallest_sum = i;  //keep track of which index has the smallest sum
                             }
                         }
-                    }               
+                        current_sum = 0;
+                    } 
+                    ROS_INFO("using %d index",index_of_smallest_sum);              
                     qvec = q6dof_solns[index_of_smallest_sum];
                     
                     stuff_trajectory(qvec,new_trajectory);
@@ -220,7 +222,7 @@ int main(int argc, char** argv) {
                         pub.publish(new_trajectory);
                     
                 }
-                 ROS_INFO("using %d index",index_of_smallest_sum);
+                 
 
                 
                 /*if (nsolns>0) {
