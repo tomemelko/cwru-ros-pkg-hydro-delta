@@ -42,7 +42,6 @@ const double MAX_SPEED = 1.0; // m/sec; adjust this
 const double MAX_OMEGA = 1.0; //1.0; // rad/sec; adjust this
 
 // variables used for omega controller
-const double K_phi = 30; // gain variable used for omega controller
 const double d_thresh = 1; //threshold for lateral offset
 
 // define a class, including a constructor, member variables and member functions
