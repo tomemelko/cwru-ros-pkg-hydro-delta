@@ -34,7 +34,7 @@
 #include <Eigen/LU>
 
 const double UPDATE_RATE = 50.0; // choose the desired-state publication update rate
-const double K_PHI= 10.0; // control gains for steering
+const double K_PHI= 5.0; // control gains for steering
 const double K_DISP = 3.0;
 const double K_TRIP_DIST = 1.0;
 // dynamic limitations:  these apply to the steering controller; they may be larger than the limits on des state generation
@@ -54,6 +54,14 @@ public:
     double convertPlanarQuat2Phi(geometry_msgs::Quaternion quaternion);   
     double min_dang(double dang);  
     double sat(double x);
+
+    // some utilities:
+    //signum function: define this one in-line
+    double sgn(double x) { if (x>0.0) {return 1.0; }
+    else if (x<0.0) {return -1.0;}
+    else {return 0.0;}
+    }
+
 private:
     // put private member data here;  "private" data will only be available to member functions of this class;
     ros::NodeHandle nh_; // we will need this, to pass between "main" and constructor
