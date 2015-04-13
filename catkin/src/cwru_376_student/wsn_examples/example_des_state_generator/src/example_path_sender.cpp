@@ -69,7 +69,7 @@ int main(int argc, char **argv) {
     path_message.request.path.poses.push_back(vertex);
 
     //vertex 2:
-    x= -3.2;
+    x= -3.6;
     y= 20.7;
     phi= .745;
     ROS_INFO("vertex: x,y,phi = %f, %f %f",x,y,phi);
