@@ -1,9 +1,9 @@
-// example_steering_algorithm.h header file //
+// delta_steering_algorithm.h header file //
 // wsn; Feb, 2015
-// include this file in "example_steering_algorithm.cpp"
+// include this file in "delta_steering_algorithm.cpp"
 
-#ifndef EXAMPLE_STEERING_ALGORITHM_H_
-#define EXAMPLE_STEERING_ALGORITHM_H_
+#ifndef DELTA_STEERING_ALGORITHM_H_
+#define DELTA_STEERING_ALGORITHM_H_
 
 //some generically useful stuff to include...
 #include <math.h>

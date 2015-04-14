@@ -1,6 +1,6 @@
-//example path sender
+//delta path sender
 // wsn, Feb 2015
-// test node compatible with example_des_state_generator.cpp;
+// test node compatible with delta_des_state_generator.cpp;
 // transmits a hard-coded path to desired-state generator node via service "appendPathService"
 // the message must contain a nav_msgs/Path object
 
