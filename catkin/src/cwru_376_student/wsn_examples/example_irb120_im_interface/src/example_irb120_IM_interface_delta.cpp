@@ -17,6 +17,7 @@
 #include "trajectory_msgs/JointTrajectory.h"
 #include "trajectory_msgs/JointTrajectoryPoint.h"
 #include <sensor_msgs/JointState.h>
+ #include <tf/transform_listener.h>
 
 //callback to subscribe to marker state
 Eigen::Vector3d g_p;
@@ -27,6 +28,12 @@ Eigen::Quaterniond g_quat;
 Eigen::Matrix3d g_R;
 Eigen::Affine3d g_A_flange_desired;
 bool g_trigger=false;
+
+tf::TransformListener* g_tfListener;
+tf::StampedTransform g_armlink1_wrt_baseLink;
+geometry_msgs::PoseStamped g_marker_pose_in;
+geometry_msgs::PoseStamped g_marker_pose_wrt_arm_base;
+
 using namespace std;
 
 void markerListenerCB(
@@ -35,14 +42,23 @@ void markerListenerCB(
             << feedback->pose.position.x << ", " << feedback->pose.position.y
             << ", " << feedback->pose.position.z);
     //copy to global vars:
-    g_p[0] = feedback->pose.position.x;
+    /*g_p[0] = feedback->pose.position.x;
     g_p[1] = feedback->pose.position.y;
     g_p[2] = feedback->pose.position.z;
     g_quat.x() = feedback->pose.orientation.x;
     g_quat.y() = feedback->pose.orientation.y;
     g_quat.z() = feedback->pose.orientation.z;
     g_quat.w() = feedback->pose.orientation.w;   
-    g_R = g_quat.matrix();
+    g_R = g_quat.matrix();*/
+
+    g_p[0] = g_marker_pose_wrt_arm_base.pose.position.x;
+    g_p[1] = g_marker_pose_wrt_arm_base.pose.position.y;
+    g_p[2] = g_marker_pose_wrt_arm_base.pose.position.z;
+    g_quat.x() = g_marker_pose_wrt_arm_base.pose.orientation.x;
+    g_quat.y() = g_marker_pose_wrt_arm_base.pose.orientation.y;
+    g_quat.z() = g_marker_pose_wrt_arm_base.pose.orientation.z;
+    g_quat.w() = g_marker_pose_wrt_arm_base.pose.orientation.w;   
+    g_R = g_quat.matrix();   
 }
 
 //storing current position into g_q_state
@@ -79,6 +95,7 @@ void stuff_trajectory( Vectorq6x1 qvec, trajectory_msgs::JointTrajectory &new_tr
      
     
     new_trajectory.points.clear(); //clear points in the new trajectory
+    new_trajectory.joint_names.clear();
     new_trajectory.joint_names.push_back("joint_1"); //naming the joints? why?
     new_trajectory.joint_names.push_back("joint_2");
     new_trajectory.joint_names.push_back("joint_3");
@@ -165,7 +182,29 @@ int main(int argc, char** argv) {
     //std::cout << A_fwd_DH.linear() << std::endl;
     //std::cout << "A origin: " << A_fwd_DH.translation().transpose() << std::endl;   
   
+    g_tfListener = new tf::TransformListener;  //create a transform listener
     
+    // wait to start receiving valid tf transforms between map and odom:
+    bool tferr=true;
+    ROS_INFO("waiting for tf between base_link and link1 of arm...");
+    while (tferr) {
+        tferr=false;
+        try {
+                //try to lookup transform from target frame "odom" to source frame "map"
+            //The direction of the transform returned will be from the target_frame to the source_frame. 
+             //Which if applied to data, will transform data in the source_frame into the target_frame. See tf/CoordinateFrameConventions#Transform_Direction
+                g_tfListener->lookupTransform("base_link", "link1", ros::Time(0), g_armlink1_wrt_baseLink);
+            } catch(tf::TransformException &exception) {
+                ROS_ERROR("%s", exception.what());
+                tferr=true;
+                ros::Duration(0.5).sleep(); // sleep for half a second
+                ros::spinOnce();                
+            }   
+    }
+    ROS_INFO("tf is good");
+    // from now on, tfListener will keep track of transforms        
+      
+
     int nsolns;
    
     
