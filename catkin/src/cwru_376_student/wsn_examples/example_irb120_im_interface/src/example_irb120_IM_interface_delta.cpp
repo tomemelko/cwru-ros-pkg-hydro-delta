@@ -41,6 +41,11 @@ void markerListenerCB(
     ROS_INFO_STREAM(feedback->marker_name << " is now at "
             << feedback->pose.position.x << ", " << feedback->pose.position.y
             << ", " << feedback->pose.position.z);
+    ROS_INFO_STREAM("marker frame_id is "<<feedback->header.frame_id);
+    g_marker_pose_in.header = feedback->header;
+    g_marker_pose_in.pose=feedback->pose;
+     g_tfListener->transformPose("link1", g_marker_pose_in, g_marker_pose_wrt_arm_base);
+     
     //copy to global vars:
     /*g_p[0] = feedback->pose.position.x;
     g_p[1] = feedback->pose.position.y;
