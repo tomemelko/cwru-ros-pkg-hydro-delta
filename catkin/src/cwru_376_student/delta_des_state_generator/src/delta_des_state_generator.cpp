@@ -32,7 +32,7 @@ DesStateGenerator::DesStateGenerator(ros::NodeHandle* nodehandle) : nh_(*nodehan
     // wait to start receiving valid tf transforms between map and odom:
     bool tferr=true;
     ROS_INFO("waiting for tf between map and odom...");
-    while (tferr) {
+    /*while (tferr) {
         tferr=false;
         try {
                 //try to lookup transform from target frame "odom" to source frame "map"
@@ -45,7 +45,7 @@ DesStateGenerator::DesStateGenerator(ros::NodeHandle* nodehandle) : nh_(*nodehan
                 ros::Duration(0.5).sleep(); // sleep for half a second
                 ros::spinOnce();                
             }   
-    }
+    }*/
     ROS_INFO("tf is good");
     // from now on, tfListener will keep track of transforms
 
@@ -142,8 +142,7 @@ void DesStateGenerator::odomCallback(const nav_msgs::Odometry& odom_rcvd) {
     odom_phi_ = convertPlanarQuat2Phi(odom_quat_); // cheap conversion from quaternion to heading for planar motion
 }
 
-void DesStateGenerator::motorsEnabledCallback(const std_msgs::Bool::ConstPtr &motorsEnabled)
-{
+void DesStateGenerator::motorsEnabledCallback(const std_msgs::Bool::ConstPtr &motorsEnabled)  {
 
     if (motorsEnabled->data == true)
     {
@@ -160,8 +159,7 @@ void DesStateGenerator::motorsEnabledCallback(const std_msgs::Bool::ConstPtr &mo
 }
 
 //store lidar information in global variable
-void DesStateGenerator::lidarCallback(const std_msgs::Bool &lidar_alarm)
-{
+void DesStateGenerator::lidarCallback(const std_msgs::Bool &lidar_alarm)  {
 
     if (lidar_alarm.data == true)
     {
@@ -252,10 +250,24 @@ double DesStateGenerator::compute_heading_from_v1_v2(Eigen::Vector2d v1, Eigen::
         return (heading_v1_to_v2); 
 }
 
+double DesStateGenerator::compute_heading_from_pose2_pose1(geometry_msgs::Pose pose1, geometry_msgs::Pose pose2)  {
+        Eigen::Vector2d v1, v2;
+    
+        //unpack the x,y coordinates, and put these in a vector of type Eigen
+        v1(0) = pose1.position.x;
+        v1(1) = pose1.position.y;    
+        v2(0) = pose2.position.x;
+        v2(1) = pose2.position.y; 
+
+        Eigen::Vector2d dv = v1 - v2; //vector from v2 to v1 
+        double heading_v2_to_v1 = atan2(dv(1), dv(0)); //heading from v2 to v1 = target heading; head here incrementally  
+        return (heading_v2_to_v1); 
+}
+
 //DUMMY...
 geometry_msgs::PoseStamped DesStateGenerator::map_to_odom_pose(geometry_msgs::PoseStamped map_pose) {
     // to use tf, need to convert coords from a geometry_msgs::Pose into a tf::Point
-    tf::Point tf_map_goal;
+    /*tf::Point tf_map_goal;
     tf_map_goal.setX(map_pose.pose.position.x);   //fill in the data members of this tf::Point
     tf_map_goal.setY(map_pose.pose.position.y);
     tf_map_goal.setZ(map_pose.pose.position.z);
@@ -295,13 +307,13 @@ geometry_msgs::PoseStamped DesStateGenerator::map_to_odom_pose(geometry_msgs::Po
             std::cout<<"DEBUG:  enter 1: ";
             std::cin>>ans;   
         }    */
-    return odom_pose; // dummy--no conversion; when AMCL is running, use base-frame transform to convert from map to odom coords
+    return map_pose; // dummy--no conversion; when AMCL is running, use base-frame transform to convert from map to odom coords
 }
 
 // changed from nothing to same thing as map_to_odom_pose but with map and odom roles flipped
 geometry_msgs::PoseStamped DesStateGenerator::odom_to_map_pose(geometry_msgs::PoseStamped odom_pose) {
     // to use tf, we need to convert coords from a geometry_msgs::Pose into a tf::Point
-    tf::Point tf_odom_goal;
+    /*tf::Point tf_odom_goal;
     tf_odom_goal.setX(odom_pose.pose.position.x);
     tf_odom_goal.setY(odom_pose.pose.position.y);
     tf_odom_goal.setZ(odom_pose.pose.position.z);
@@ -344,7 +356,7 @@ geometry_msgs::PoseStamped DesStateGenerator::odom_to_map_pose(geometry_msgs::Po
             std::cout<<"DEBUG:  enter 1: ";
             std::cin>>ans;   
         }   */
-    return map_pose; // dummy--no conversion; when AMCL is running, use base-frame transform to convert from map to odom coords
+    return odom_pose; // dummy--no conversion; when AMCL is running, use base-frame transform to convert from map to odom coords
 }
 
 // NEED TO CONVERT FROM POLYLINE PATH TO DYNAMICALLY FEASIBLE PATH SEGMENTS
@@ -405,10 +417,17 @@ void DesStateGenerator::process_new_vertex() {
     //start_pose_wrt_odom =  des_state_.pose.pose;   
        
     std::vector<cwru_msgs::PathSegment> vec_of_path_segs; // container for path segments to be built
-   
+
+    // we want heading from v2 to v1 to equal heading of v1  
+    double diff_heading = compute_heading_from_pose2_pose1(start_pose_wrt_odom, goal_pose_wrt_odom.pose);
+    double current_heading = convertPlanarQuat2Phi(start_pose_wrt_odom.orientation);
+    if (diff_heading >= .9*current_heading && diff_heading <= 1.1*current_heading)  {
+        vec_of_path_segs = build_reverse_segment(start_pose_wrt_odom, goal_pose_wrt_odom.pose);
+    }
+    else  {
     // the following will construct two path segments: spin to reorient, then lineseg to reach goal point
     vec_of_path_segs = build_spin_then_line_path_segments(start_pose_wrt_odom, goal_pose_wrt_odom.pose);
-
+    }
 
 
     //BEGIN LOGIC FOR BUILDING THE ARC
@@ -555,6 +574,40 @@ cwru_msgs::PathSegment DesStateGenerator::build_line_segment(Eigen::Vector2d v1,
     return  line_path_segment;
 }
 
+std::vector<cwru_msgs::PathSegment> DesStateGenerator::build_reverse_segment(geometry_msgs::Pose pose1, geometry_msgs::Pose pose2)  {
+
+    std::vector<cwru_msgs::PathSegment> vec_of_path_segs; //container to hold results
+    Eigen::Vector2d v1, v2;
+    
+    //unpack the x,y coordinates, and put these in a vector of type Eigen
+    v1(0) = pose1.position.x;
+    v1(1) = pose1.position.y;    
+    v2(0) = pose2.position.x;
+    v2(1) = pose2.position.y;
+
+    ROS_INFO("build_reverse_segment");
+
+    cwru_msgs::PathSegment reverse_path_segment; // a container for new path segment
+    double des_heading;
+    Eigen::Vector2d dv = v2 - v1; //vector from v1 to v2 
+        
+    des_heading = compute_heading_from_pose2_pose1(pose1,pose2); //heading from v1 to v2= target heading; head here incrementally
+    reverse_path_segment.init_tan_angle = convertPlanarPhi2Quaternion(des_heading);  
+    reverse_path_segment.curvature = 0.0;
+    reverse_path_segment.seg_length = dv.norm();
+    reverse_path_segment.seg_type = cwru_msgs::PathSegment::REVERSE;   
+    reverse_path_segment.ref_point.x = v1(0);
+    reverse_path_segment.ref_point.y = v1(1);        
+
+    ROS_INFO("new line seg starts from x,y = %f, %f",v1(0),v1(1));
+    ROS_INFO("new line seg_length = %f",reverse_path_segment.seg_length);
+    ROS_INFO("heading: %f",des_heading);
+
+    vec_of_path_segs.push_back(reverse_path_segment);
+
+    return vec_of_path_segs;
+}
+
 // this function takes a path_segment object and fills in member variables, for
 //  iterative re-use by "update_des_state"
 void DesStateGenerator::unpack_next_path_segment() {   
@@ -614,6 +667,10 @@ void DesStateGenerator::unpack_next_path_segment() {
             ROS_INFO("unpacking a lineseg segment");
             current_seg_phi_goal_= current_seg_init_tan_angle_; // this will remain constant over lineseg           
             break;
+        case REVERSE:
+            ROS_INFO("unpacking a reverse segment");
+            current_seg_phi_goal_= current_seg_init_tan_angle_; // this will remain constant over lineseg           
+            break;
         case SPIN_IN_PLACE:
             //compute goal heading:
             ROS_INFO("unpacking a spin-in-place segment");
@@ -651,6 +708,9 @@ void DesStateGenerator::update_des_state() {
     switch (current_seg_type_) {
         case LINE: 
             des_state_ = update_des_state_lineseg();          
+            break;
+        case REVERSE: 
+            des_state_ = update_des_state_reverse();          
             break;
         case SPIN_IN_PLACE:
             des_state_ = update_des_state_spin();
@@ -724,6 +784,58 @@ nav_msgs::Odometry DesStateGenerator::update_des_state_lineseg()
     desired_state.header.stamp = ros::Time::now();
     return desired_state; 
 }
+
+nav_msgs::Odometry DesStateGenerator::update_des_state_reverse()
+{
+
+    nav_msgs::Odometry desired_state; // fill in this message and return it
+    // but we will also update member variables:
+    // need to update these values:
+    //    current_seg_length_to_go_, current_seg_phi_des_, current_seg_xy_des_ 
+    //    current_speed_des_, current_omega_des_
+    if (motorsEnabled_ == false)
+    {
+        current_speed_des_ = 0;
+    }
+    else
+    {
+        current_speed_des_ = -.3;
+    }
+
+    current_omega_des_ = 0.0; // this value will not change during lineseg motion
+    current_seg_phi_des_ = current_seg_init_tan_angle_; // this value will not change during lineseg motion
+    
+    double delta_s = current_speed_des_*dt_; //incremental forward move distance; a scalar
+    
+    current_seg_length_to_go_ += delta_s; // plan to move forward by this much
+    ROS_INFO("update_des_state_reverse: current_segment_length_to_go_ = %f",current_seg_length_to_go_);     
+    if (current_seg_length_to_go_ < LENGTH_TOL) 
+    { // check if done with this move
+        // done with line segment;
+        current_seg_type_ = HALT;
+        current_seg_xy_des_ = current_seg_ref_point_ + current_seg_tangent_vec_*current_seg_length_; // specify destination vertex as exact, current goal
+        current_seg_phi_des_ = current_seg_init_tan_angle_;
+        current_seg_length_to_go_=0.0;
+        current_speed_des_ = 0.0;  //
+        current_omega_des_ = 0.0; 
+        current_path_seg_done_ = true; 
+        ROS_INFO("update_des_state_reverse: done with translational motion commands");
+    }
+    else 
+    { // not done with translational move yet--step forward
+        // based on distance covered, compute current desired x,y; use scaled vector from v1 to v2 
+        current_seg_xy_des_ = current_seg_ref_point_ + current_seg_tangent_vec_*(current_seg_length_ - current_seg_length_to_go_);   
+    }
+
+    // fill in components of desired-state message:
+    desired_state.twist.twist.linear.x =current_speed_des_;
+    desired_state.twist.twist.angular.z = current_omega_des_;
+    desired_state.pose.pose.position.x = current_seg_xy_des_(0);
+    desired_state.pose.pose.position.y = current_seg_xy_des_(1);
+    desired_state.pose.pose.orientation = convertPlanarPhi2Quaternion(current_seg_phi_des_);
+    desired_state.header.stamp = ros::Time::now();
+    return desired_state; 
+} 
 
 
 nav_msgs::Odometry DesStateGenerator::update_des_state_spin() 

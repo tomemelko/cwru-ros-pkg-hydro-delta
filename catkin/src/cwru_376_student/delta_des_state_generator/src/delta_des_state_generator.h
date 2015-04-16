@@ -47,6 +47,7 @@ const bool DEBUG_MODE=false; // change this for display/break-points
 //Segment types 
 const int HALT = 0;
 const int LINE = cwru_msgs::PathSegment::LINE;
+const int REVERSE = cwru_msgs::PathSegment::REVERSE;
 const int ARC = cwru_msgs::PathSegment::ARC;
 const int SPIN_IN_PLACE = cwru_msgs::PathSegment::SPIN_IN_PLACE;
 
@@ -117,6 +118,7 @@ public:
     double convertPlanarQuat2Phi(geometry_msgs::Quaternion quaternion);
     geometry_msgs::Quaternion convertPlanarPhi2Quaternion(double phi);
     double compute_heading_from_v1_v2(Eigen::Vector2d v1, Eigen::Vector2d v2);
+    double compute_heading_from_pose2_pose1(geometry_msgs::Pose pose1, geometry_msgs::Pose pose2);
 
     geometry_msgs::PoseStamped map_to_odom_pose(geometry_msgs::PoseStamped map_pose);
     
@@ -237,6 +239,7 @@ private:
 
     // helper functions for the above: how to construct line and spin path segments
     cwru_msgs::PathSegment build_line_segment(Eigen::Vector2d v1, Eigen::Vector2d v2);
+    std::vector<cwru_msgs::PathSegment> build_reverse_segment(geometry_msgs::Pose pose1, geometry_msgs::Pose pose2);
     cwru_msgs::PathSegment build_spin_in_place_segment(Eigen::Vector2d v1, double init_heading, double des_heading);
     // TODO: augment with circular-arc segments
     cwru_msgs::PathSegment build_arc_segment(Eigen::Vector2d arc_center, double init_heading, double final_heading, double curvature);
@@ -260,6 +263,7 @@ private:
     // the published desired state in the HALT condition is based on the last subgoal pose received, continuously updated
     // with the latest map_to_odom transform
     nav_msgs::Odometry update_des_state_lineseg();
+    nav_msgs::Odometry update_des_state_reverse();
     nav_msgs::Odometry update_des_state_spin();
     nav_msgs::Odometry update_des_state_arc();
     nav_msgs::Odometry update_des_state_halt();

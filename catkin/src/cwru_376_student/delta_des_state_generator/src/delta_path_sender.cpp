@@ -60,8 +60,13 @@ int main(int argc, char **argv) {
     vertex.header.frame_id = "map"; // specify this, so tf will know how to transform it
     
     // fill in the interesting data: (x,y) and phi = location and heading
+    
+
+    //correct vertices for AMCL map navigation in second floor hall
+    /*
+
     //vertex 1:
-    x= 5.33;
+    x= 5.33;        
     y= 12.0;
     phi= 2.31;
     ROS_INFO("vertex: x,y,phi = %f, %f %f",x,y,phi);
@@ -80,6 +85,42 @@ int main(int argc, char **argv) {
     x = .85;
     y = 24.6;
     phi= 0.0;
+    ROS_INFO("vertex: x,y,phi = %f, %f %f",x,y,phi);
+    vertex.pose = xyPhi2Pose(x,y,phi); //x,y,phi  
+    path_message.request.path.poses.push_back(vertex);
+    */
+
+    //reversal test vertices
+
+    //vertex 1:
+    x= -5;        
+    y= 0;
+    phi= 0;
+    ROS_INFO("vertex: x,y,phi = %f, %f %f",x,y,phi);
+    vertex.pose = xyPhi2Pose(x,y,phi); //x,y,phi
+    path_message.request.path.poses.push_back(vertex);
+
+    //vertex 2:
+    x= 10;
+    y= 10;
+    phi= 0;
+    ROS_INFO("vertex: x,y,phi = %f, %f %f",x,y,phi);
+    vertex.pose = xyPhi2Pose(x,y,phi); //x,y,phi  
+    path_message.request.path.poses.push_back(vertex);
+    
+    //vertex 3:
+    x = 10;
+    y = 10;
+    phi= 1.57;
+    ROS_INFO("vertex: x,y,phi = %f, %f %f",x,y,phi);
+    vertex.pose = xyPhi2Pose(x,y,phi); //x,y,phi  
+    path_message.request.path.poses.push_back(vertex);
+
+
+    //vertex 4:
+    x = -10;
+    y = -10;
+    phi= 1.56;
     ROS_INFO("vertex: x,y,phi = %f, %f %f",x,y,phi);
     vertex.pose = xyPhi2Pose(x,y,phi); //x,y,phi  
     path_message.request.path.poses.push_back(vertex);

@@ -5,6 +5,7 @@ Header header
 int8 LINE = 1
 int8 ARC = 2
 int8 SPIN_IN_PLACE = 3
+int8 REVERSE = 4
 
 #Segment type
 int8 seg_type
