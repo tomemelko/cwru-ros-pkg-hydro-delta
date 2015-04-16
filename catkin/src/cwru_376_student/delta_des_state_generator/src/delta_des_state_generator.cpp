@@ -421,7 +421,7 @@ void DesStateGenerator::process_new_vertex() {
     // we want heading from v2 to v1 to equal heading of v1  
     double diff_heading = compute_heading_from_pose2_pose1(start_pose_wrt_odom, goal_pose_wrt_odom.pose);
     double current_heading = convertPlanarQuat2Phi(start_pose_wrt_odom.orientation);
-    if (diff_heading >= .9*current_heading && diff_heading <= 1.1*current_heading)  {
+    if ((diff_heading >= (.9*current_heading)) && (diff_heading <= (1.1*current_heading)))  {
         vec_of_path_segs = build_reverse_segment(start_pose_wrt_odom, goal_pose_wrt_odom.pose);
     }
     else  {
@@ -787,7 +787,6 @@ nav_msgs::Odometry DesStateGenerator::update_des_state_lineseg()
 
 nav_msgs::Odometry DesStateGenerator::update_des_state_reverse()
 {
-
     nav_msgs::Odometry desired_state; // fill in this message and return it
     // but we will also update member variables:
     // need to update these values:
@@ -802,18 +801,18 @@ nav_msgs::Odometry DesStateGenerator::update_des_state_reverse()
         current_speed_des_ = -.3;
     }
 
-    current_omega_des_ = 0.0; // this value will not change during lineseg motion
-    current_seg_phi_des_ = current_seg_init_tan_angle_; // this value will not change during lineseg motion
+    current_omega_des_ = 0.0; // this value will not change during reverse motion
+    current_seg_phi_des_ = current_seg_init_tan_angle_; // this value will not change during reverse motion
     
-    double delta_s = current_speed_des_*dt_; //incremental forward move distance; a scalar
+    double delta_s = -1*current_speed_des_*dt_; //incremental reverse move distance; a scalar
     
-    current_seg_length_to_go_ += delta_s; // plan to move forward by this much
+    current_seg_length_to_go_ -= delta_s; // plan to move forward by this much
     ROS_INFO("update_des_state_reverse: current_segment_length_to_go_ = %f",current_seg_length_to_go_);     
     if (current_seg_length_to_go_ < LENGTH_TOL) 
     { // check if done with this move
         // done with line segment;
         current_seg_type_ = HALT;
-        current_seg_xy_des_ = current_seg_ref_point_ + current_seg_tangent_vec_*current_seg_length_; // specify destination vertex as exact, current goal
+        current_seg_xy_des_ = current_seg_ref_point_ + (-1*current_seg_tangent_vec_)*current_seg_length_; // specify destination vertex as exact, current goal
         current_seg_phi_des_ = current_seg_init_tan_angle_;
         current_seg_length_to_go_=0.0;
         current_speed_des_ = 0.0;  //
@@ -824,7 +823,7 @@ nav_msgs::Odometry DesStateGenerator::update_des_state_reverse()
     else 
     { // not done with translational move yet--step forward
         // based on distance covered, compute current desired x,y; use scaled vector from v1 to v2 
-        current_seg_xy_des_ = current_seg_ref_point_ + current_seg_tangent_vec_*(current_seg_length_ - current_seg_length_to_go_);   
+        current_seg_xy_des_ = current_seg_ref_point_ + (-1*current_seg_tangent_vec_)*(current_seg_length_ - current_seg_length_to_go_);   
     }
 
     // fill in components of desired-state message:
@@ -894,7 +893,6 @@ nav_msgs::Odometry DesStateGenerator::update_des_state_spin()
     return desired_state;         
 }
 
-
 nav_msgs::Odometry DesStateGenerator::update_des_state_arc() 
 {
     nav_msgs::Odometry desired_state; // fill in this message and return it
@@ -945,7 +943,6 @@ nav_msgs::Odometry DesStateGenerator::update_des_state_arc()
     return desired_state; 
 }
 
-
 nav_msgs::Odometry DesStateGenerator::update_des_state_halt() {
     nav_msgs::Odometry desired_state; // fill in this message and return it
     // fill in components of desired-state message from most recent odom message
@@ -962,13 +959,7 @@ nav_msgs::Odometry DesStateGenerator::update_des_state_halt() {
     return desired_state;         
 }
 
-
-
-//DUMMY--fill this in
-
-// To calculate the desired speed
-double DesStateGenerator::compute_speed_profile(double current_seg_length_to_go_, double dist_decel) 
-{
+double DesStateGenerator::compute_speed_profile(double current_seg_length_to_go_, double dist_decel) {
     double scheduled_vel = 0.0f;
 
     ROS_INFO("distance left: %f", current_seg_length_to_go_);
@@ -996,13 +987,7 @@ double DesStateGenerator::compute_speed_profile(double current_seg_length_to_go_
     }
 }
 
-
-
-// MAKE THIS BETTER!!
-
-// To achieve the max omega
-double DesStateGenerator::compute_omega_profile(double current_seg_length_to_go_, double rot_decel, double current_seg_curvature_) 
-{
+double DesStateGenerator::compute_omega_profile(double current_seg_length_to_go_, double rot_decel, double current_seg_curvature_)  {
     double scheduled_omega = 0.0f;
 
     ROS_INFO("phi left: %f", current_seg_length_to_go_);
@@ -1034,8 +1019,7 @@ double DesStateGenerator::compute_omega_profile(double current_seg_length_to_go_
     */
 }
 
-double DesStateGenerator::compute_arc_profile()
-{
+double DesStateGenerator::compute_arc_profile()  {
     double scheduled_arc = 0.0f;
 
     ROS_INFO("arc left: %f", current_seg_length_to_go_);
@@ -1061,8 +1045,7 @@ double DesStateGenerator::compute_arc_profile()
     return scheduled_arc;
 }
 
-double DesStateGenerator::compute_lidar_vel(double scheduled_vel, double a_max, double DT)
-{
+double DesStateGenerator::compute_lidar_vel(double scheduled_vel, double a_max, double DT)  {
     double emergency_slow_down_fudge_factor = 2;
 
 
@@ -1076,8 +1059,7 @@ double DesStateGenerator::compute_lidar_vel(double scheduled_vel, double a_max, 
         return scheduled_vel;
 }
 
-double DesStateGenerator::compute_lidar_omega(double scheduled_omega, double alpha_max, double DT)
-{
+double DesStateGenerator::compute_lidar_omega(double scheduled_omega, double alpha_max, double DT)  {
     double emergency_slow_down_fudge_factor = 2;
 
         scheduled_omega -= emergency_slow_down_fudge_factor*alpha_max*DT;

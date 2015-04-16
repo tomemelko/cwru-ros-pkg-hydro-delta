@@ -80,8 +80,7 @@ void SteeringController::initializeSubscribers() {
 
 //member helper function to set up services:
 // similar syntax to subscriber, required for setting up services outside of "main()"
-void SteeringController::initializeServices()
-{
+void SteeringController::initializeServices()  {
     ROS_INFO("Initializing Services: exampleMinimalService");
     simple_service_ = nh_.advertiseService("exampleMinimalService",
                                                    &SteeringController::serviceCallback,
@@ -90,15 +89,12 @@ void SteeringController::initializeServices()
 }
 
 //member helper function to set up publishers;
-void SteeringController::initializePublishers()
-{
+void SteeringController::initializePublishers()  {
     ROS_INFO("Initializing Publishers: cmd_vel and cmd_vel_stamped");
     cmd_publisher_ = nh_.advertise<geometry_msgs::Twist>("cmd_vel", 1, true); // talks to the robot!
     cmd_publisher2_ = nh_.advertise<geometry_msgs::TwistStamped>("cmd_vel_stamped",1, true); //alt topic, includes time stamp
     steering_errs_publisher_ =  nh_.advertise<std_msgs::Float32MultiArray>("steering_errs",1, true);
 }
-
-
 
 void SteeringController::odomCallback(const nav_msgs::Odometry& odom_rcvd) {
     // copy some of the components of the received message into member vars
@@ -143,7 +139,6 @@ double SteeringController::min_dang(double dang) {
     return dang;
 }
 
-
 // saturation function, values -1 to 1
 double SteeringController::sat(double x) {
     if (x>1.0) {
@@ -178,11 +173,19 @@ void SteeringController::my_clever_steering_algorithm() {
     Eigen::Vector2d pos_err_xy_vec_;
     Eigen::Vector2d t_vec;    //tangent of desired path
     Eigen::Vector2d n_vec;    //normal to desired path, pointing to the "left" 
-    t_vec(0) = cos(des_state_phi_);
-    t_vec(1) = sin(des_state_phi_);
-    n_vec(0) = -t_vec(1);
-    n_vec(1) = t_vec(0);
-    
+    if (des_state_vel_ < 0)  {
+        t_vec(0) = - cos(des_state_phi_);
+        t_vec(1) = - sin(des_state_phi_);
+        n_vec(0) = t_vec(1);
+        n_vec(1) = -t_vec(0);
+    }
+    else  {
+        t_vec(0) = cos(des_state_phi_);
+        t_vec(1) = sin(des_state_phi_);
+        n_vec(0) = -t_vec(1);
+        n_vec(1) = t_vec(0);
+    }
+
     double heading_err;  
     double lateral_err;
     double trip_dist_err; // error is scheduling...are we ahead or behind?
@@ -212,8 +215,9 @@ void SteeringController::my_clever_steering_algorithm() {
     
     // Odd second order position controller with max speed cap
     controller_speed = (sgn(des_state_vel_)*.5*(trip_dist_err*trip_dist_err)) + des_state_vel_; 
-    if (fabs(controller_speed) >= MAX_SPEED + .1)
+    if (fabs(controller_speed) >= MAX_SPEED + .1)  {
         controller_speed = (sgn(des_state_vel_))*(MAX_SPEED +.1);
+    }
 
     // Tuned and designed steering algorithm to correct for both lateral and heading errors
     controller_omega = MAX_OMEGA*sat(K_PHI*((-1*(3.14159/2))*sat(-1*lateral_err/d_thresh) + heading_err));    
