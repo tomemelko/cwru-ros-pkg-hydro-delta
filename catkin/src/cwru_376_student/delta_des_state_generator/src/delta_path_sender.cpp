@@ -101,9 +101,9 @@ int main(int argc, char **argv) {
     path_message.request.path.poses.push_back(vertex);
 
     //vertex 2:
-    x= 10;
+    x= -10;
     y= 10;
-    phi= 0;
+    phi= 1.57;
     ROS_INFO("vertex: x,y,phi = %f, %f %f",x,y,phi);
     vertex.pose = xyPhi2Pose(x,y,phi); //x,y,phi  
     path_message.request.path.poses.push_back(vertex);
@@ -111,12 +111,12 @@ int main(int argc, char **argv) {
     //vertex 3:
     x = 10;
     y = 10;
-    phi= 1.57;
+    phi= 0;
     ROS_INFO("vertex: x,y,phi = %f, %f %f",x,y,phi);
     vertex.pose = xyPhi2Pose(x,y,phi); //x,y,phi  
     path_message.request.path.poses.push_back(vertex);
 
-
+    /*
     //vertex 4:
     x = -10;
     y = -10;
@@ -124,7 +124,7 @@ int main(int argc, char **argv) {
     ROS_INFO("vertex: x,y,phi = %f, %f %f",x,y,phi);
     vertex.pose = xyPhi2Pose(x,y,phi); //x,y,phi  
     path_message.request.path.poses.push_back(vertex);
-
+    */
     //transmit this path message:
     if (client.call(path_message)) {
         ROS_INFO("got ack from server");

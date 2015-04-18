@@ -173,12 +173,19 @@ void SteeringController::my_clever_steering_algorithm() {
     Eigen::Vector2d pos_err_xy_vec_;
     Eigen::Vector2d t_vec;    //tangent of desired path
     Eigen::Vector2d n_vec;    //normal to desired path, pointing to the "left" 
+    
+    // Used for debugging reversal case
+    ROS_WARN("des_state_vel_: %f", des_state_vel_);
+
+    // If the robot is attempting to reverse, we need to define our tangential/lateral vectors as such
+    // Doing this allows our reverse case to work with existing controllers
     if (des_state_vel_ < 0)  {
         t_vec(0) = - cos(des_state_phi_);
         t_vec(1) = - sin(des_state_phi_);
-        n_vec(0) = t_vec(1);
-        n_vec(1) = -t_vec(0);
+        n_vec(0) = -t_vec(1);
+        n_vec(1) = t_vec(0);
     }
+    // If not trying to reverse, define our tangential and lateral vectors normally
     else  {
         t_vec(0) = cos(des_state_phi_);
         t_vec(1) = sin(des_state_phi_);

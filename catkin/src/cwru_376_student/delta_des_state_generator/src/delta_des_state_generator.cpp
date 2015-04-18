@@ -250,6 +250,7 @@ double DesStateGenerator::compute_heading_from_v1_v2(Eigen::Vector2d v1, Eigen::
         return (heading_v1_to_v2); 
 }
 
+// given poses 1 and 2, calculate the heading of the vector pointing from pose 2 x,y to pose 1 x,y
 double DesStateGenerator::compute_heading_from_pose2_pose1(geometry_msgs::Pose pose1, geometry_msgs::Pose pose2)  {
         Eigen::Vector2d v1, v2;
     
@@ -418,15 +419,16 @@ void DesStateGenerator::process_new_vertex() {
        
     std::vector<cwru_msgs::PathSegment> vec_of_path_segs; // container for path segments to be built
 
-    // we want heading from v2 to v1 to equal heading of v1  
-    double diff_heading = compute_heading_from_pose2_pose1(start_pose_wrt_odom, goal_pose_wrt_odom.pose);
-    double current_heading = convertPlanarQuat2Phi(start_pose_wrt_odom.orientation);
-    if ((diff_heading >= (.9*current_heading)) && (diff_heading <= (1.1*current_heading)))  {
-        vec_of_path_segs = build_reverse_segment(start_pose_wrt_odom, goal_pose_wrt_odom.pose);
+    // logic to handle whether we want to reverse or not 
+    double diff_heading = compute_heading_from_pose2_pose1(start_pose_wrt_odom, goal_pose_wrt_odom.pose); // heading of vector from 2nd point to 1st point
+    double current_heading = convertPlanarQuat2Phi(start_pose_wrt_odom.orientation);  // the current heading 
+    // Is the heading from 2 to 1 the same as our current heading? If so we are reversing!
+    // Here we could consider writing a cin check to manually ensure we really want to reverse to that position
+    if (fabs(min_dang(diff_heading-current_heading)) <= .1)  {
+        vec_of_path_segs = build_reverse_segment(start_pose_wrt_odom, goal_pose_wrt_odom.pose);  // create a reverse path
     }
     else  {
-    // the following will construct two path segments: spin to reorient, then lineseg to reach goal point
-    vec_of_path_segs = build_spin_then_line_path_segments(start_pose_wrt_odom, goal_pose_wrt_odom.pose);
+        vec_of_path_segs = build_spin_then_line_path_segments(start_pose_wrt_odom, goal_pose_wrt_odom.pose);  // create two path segments: spin to reorient, then lineseg to reach goal point
     }
 
 
@@ -456,15 +458,15 @@ void DesStateGenerator::process_new_vertex() {
 }
 
 
-    // build_spin_then_line_path_segments: given two poses, p1 and p2 (in consistent reference frame),
-    // construct a vector of path segments consistent with those poses;
-    // for just two poses, command spin segment to reorient along path from p1 to p2, 
-    // then a second segment to move along line from p1 to p2
-    // NOTE: pose1 should contain realistic starting heading value, but target heading will be derived
-    // from vector from pose1 to pose2
-
-    // BETTER: if successive line segments in path are nearly colinear, don't need to stop and spin;
-    // needs more logic
+    /* build_spin_then_line_path_segments: given two poses, p1 and p2 (in consistent reference frame),
+     * construct a vector of path segments consistent with those poses;
+     * for just two poses, command spin segment to reorient along path from p1 to p2, 
+     * then a second segment to move along line from p1 to p2
+     * NOTE: pose1 should contain realistic starting heading value, but target heading will be derived
+     * from vector from pose1 to pose2
+     * BETTER: if successive line segments in path are nearly colinear, don't need to stop and spin;
+     * needs more logic
+     */ 
 
 std::vector<cwru_msgs::PathSegment> DesStateGenerator::build_spin_then_line_path_segments(geometry_msgs::Pose pose1, geometry_msgs::Pose pose2) {
     cwru_msgs::PathSegment spin_path_segment; // a container for new path segment, spin
@@ -574,6 +576,7 @@ cwru_msgs::PathSegment DesStateGenerator::build_line_segment(Eigen::Vector2d v1,
     return  line_path_segment;
 }
 
+// Build a segment to reverse from current position to desired position
 std::vector<cwru_msgs::PathSegment> DesStateGenerator::build_reverse_segment(geometry_msgs::Pose pose1, geometry_msgs::Pose pose2)  {
 
     std::vector<cwru_msgs::PathSegment> vec_of_path_segs; //container to hold results
@@ -589,13 +592,13 @@ std::vector<cwru_msgs::PathSegment> DesStateGenerator::build_reverse_segment(geo
 
     cwru_msgs::PathSegment reverse_path_segment; // a container for new path segment
     double des_heading;
-    Eigen::Vector2d dv = v2 - v1; //vector from v1 to v2 
+    Eigen::Vector2d dv = v2 - v1; //vector from v1 to v2, same as above because we are still going that way
         
-    des_heading = compute_heading_from_pose2_pose1(pose1,pose2); //heading from v1 to v2= target heading; head here incrementally
+    des_heading = compute_heading_from_pose2_pose1(pose1,pose2); //heading from v2 to v1 = target heading; head here backwards incrementally
     reverse_path_segment.init_tan_angle = convertPlanarPhi2Quaternion(des_heading);  
     reverse_path_segment.curvature = 0.0;
     reverse_path_segment.seg_length = dv.norm();
-    reverse_path_segment.seg_type = cwru_msgs::PathSegment::REVERSE;   
+    reverse_path_segment.seg_type = cwru_msgs::PathSegment::REVERSE;  // created new segment type is cwru_msgs::PathSegment for this purpose
     reverse_path_segment.ref_point.x = v1(0);
     reverse_path_segment.ref_point.y = v1(1);        
 
@@ -669,7 +672,7 @@ void DesStateGenerator::unpack_next_path_segment() {
             break;
         case REVERSE:
             ROS_INFO("unpacking a reverse segment");
-            current_seg_phi_goal_= current_seg_init_tan_angle_; // this will remain constant over lineseg           
+            current_seg_phi_goal_= current_seg_init_tan_angle_; // this will remain constant over reverse segment           
             break;
         case SPIN_IN_PLACE:
             //compute goal heading:
@@ -693,17 +696,18 @@ void DesStateGenerator::unpack_next_path_segment() {
     current_path_seg_done_ = false;
 }
 
-// update the desired state and publish it: 
-// watch out--this function uses values stored in member variables
-// need to update these values:
-//    current_seg_length_to_go_ 
-//    current_seg_phi_des_ 
-//    current_seg_xy_des_ 
-//    current_speed_des_
-//    current_omega_des_
-//  these will get used to populate des_state_, which will get published on topic "desState"
-    
-// no arguments--uses values in member variables 
+/* update the desired state and publish it: 
+ * watch out--this function uses values stored in member variables
+ * need to update these values:
+ * current_seg_length_to_go_ 
+ * current_seg_phi_des_ 
+ * current_seg_xy_des_ 
+ * current_speed_des_
+ * current_omega_des_
+ * these will get used to populate des_state_, which will get published on topic "desState"
+ *
+ * no arguments--uses values in member variables 
+ */  
 void DesStateGenerator::update_des_state() {
     switch (current_seg_type_) {
         case LINE: 
@@ -790,23 +794,23 @@ nav_msgs::Odometry DesStateGenerator::update_des_state_reverse()
     nav_msgs::Odometry desired_state; // fill in this message and return it
     // but we will also update member variables:
     // need to update these values:
-    //    current_seg_length_to_go_, current_seg_phi_des_, current_seg_xy_des_ 
-    //    current_speed_des_, current_omega_des_
+    // current_seg_length_to_go_, current_seg_phi_des_, current_seg_xy_des_ 
+    // current_speed_des_, current_omega_des_
     if (motorsEnabled_ == false)
     {
         current_speed_des_ = 0;
     }
     else
     {
-        current_speed_des_ = -.3;
+        current_speed_des_ = -.2;  // remain at constant slow speed backwards
     }
 
     current_omega_des_ = 0.0; // this value will not change during reverse motion
-    current_seg_phi_des_ = current_seg_init_tan_angle_; // this value will not change during reverse motion
+    current_seg_phi_des_ = current_seg_init_tan_angle_; // this value will not change during reverse motion. It is our inital heading
     
-    double delta_s = -1*current_speed_des_*dt_; //incremental reverse move distance; a scalar
+    double delta_s = -1*current_speed_des_*dt_; // incremental move distance to be subtracted from total distance to move
     
-    current_seg_length_to_go_ -= delta_s; // plan to move forward by this much
+    current_seg_length_to_go_ -= delta_s; // chipping off how much we move each dt
     ROS_INFO("update_des_state_reverse: current_segment_length_to_go_ = %f",current_seg_length_to_go_);     
     if (current_seg_length_to_go_ < LENGTH_TOL) 
     { // check if done with this move
@@ -823,10 +827,10 @@ nav_msgs::Odometry DesStateGenerator::update_des_state_reverse()
     else 
     { // not done with translational move yet--step forward
         // based on distance covered, compute current desired x,y; use scaled vector from v1 to v2 
-        current_seg_xy_des_ = current_seg_ref_point_ + (-1*current_seg_tangent_vec_)*(current_seg_length_ - current_seg_length_to_go_);   
+        current_seg_xy_des_ = current_seg_ref_point_ + (-1*current_seg_tangent_vec_)*(current_seg_length_ - current_seg_length_to_go_); // our tangent vec is opposite for reverse
     }
 
-    // fill in components of desired-state message:
+    // fill in components of desired-state message to send to steering controller:
     desired_state.twist.twist.linear.x =current_speed_des_;
     desired_state.twist.twist.angular.z = current_omega_des_;
     desired_state.pose.pose.position.x = current_seg_xy_des_(0);
