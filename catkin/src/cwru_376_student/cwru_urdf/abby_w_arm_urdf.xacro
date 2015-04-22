@@ -1,4 +1,6 @@
 <?xml version="1.0" ?>
+
+  
 <robot 
      xmlns:xacro="http://www.ros.org/wiki/xacro"
      name="abby">
@@ -9,7 +11,19 @@
   <xacro:include filename="$(find abby_description)/urdf/materials.xacro" />  
    <!--'$(find abby_description)/urdf/irb120.xacro' -->
    
-   
+
+  
+
+   <xacro:include filename="$(find yale_openhand_models)/urdf/wsn_model_t.xacro" /> 
+ 
+
+
+  <joint name="gripper_base_joint" type="fixed">
+    <parent link="link7" />
+    <child link="gripper_base_link" />
+    <origin rpy="0 1.5708 0 " xyz="0 0 0"/>
+  </joint>
+
 	<link name="base_link">
 		<!--visual>
 			<geometry>
@@ -299,7 +313,7 @@
 	<joint name="frame--SICK_LMS2911" type="fixed">
             <!-- --> 
       		<axis xyz="0 1 0" />
-      		<origin xyz="0.55 0 0.31" rpy="0 0 0"/>
+      		<origin xyz="0.55 0 0.285" rpy="0 0 0"/>  <!--0.285 seems consistent w/ 14" from lidar bottom to floor on abby-->
             <!-- -->
 		<!--parent link="frame1"/-->
                 <parent link="base_link"/>
@@ -309,7 +323,7 @@
 
  <gazebo reference="SICK_LMS2911">
     <sensor type="gpu_ray" name="sick_lidar_sensor">
-      <pose>0 0 0 0 0 0</pose>
+      <pose>0.13 0 0  0 0 0</pose>
       <visualize>false</visualize>
       <update_rate>40</update_rate>
       <ray>
@@ -699,13 +713,14 @@
 		<axis xyz="0 1 0"/>
 		<origin rpy="-2.44191411285e-07 0.632428512243 -1.570796684" xyz="0.0374395826544 -0.13652471423 0.0571493788518"/>
 	</joint>
-	<link name="l_drive_wheel1">
+	<!--wsn: 4/20/15, try swapping l and r drive wheels to get correct cmd_vel motion -->
+	<link name="r_drive_wheel1">
 		<visual>
 			<geometry>
 				<mesh filename="package://abby_description/meshes/wheel_ipt_982fa4fe.stl" scale="0.0254 0.0254 0.0254"/>
 			</geometry>
 			<origin rpy="0 0 0" xyz="0 0 0"/>
-			<material name="l_drive_wheel1_color">
+			<material name="r_drive_wheel1_color">
 				<color rgba="0.752941 0.752941 0.752941 1"/>
 			</material>
 		</visual>
@@ -721,19 +736,19 @@
 			<origin rpy="0 0 0" xyz="0 0 0"/>
 		</collision>
 	</link>
-	<joint name="l_drive_wheel_joint" type="continuous">
+	<joint name="r_drive_wheel_joint" type="continuous">
 		<parent link="frame_solid:11"/>
-		<child link="l_drive_wheel1"/>
+		<child link="r_drive_wheel1"/>
 		<axis xyz="0 -1 0"/>
 		<origin rpy="0 -0.119809660819 1.57079632679" xyz="0.0466801199851 -0.217162738547 0.147715939724"/>
 	</joint>
-	<link name="r_drive_wheel1">
+	<link name="l_drive_wheel1">
 		<visual>
 			<geometry>
 				<mesh filename="package://abby_description/meshes/wheel_ipt_982fa4fe.stl" scale="0.0254 0.0254 0.0254"/>
 			</geometry>
 			<origin rpy="0 0 0" xyz="0 0 0"/>
-			<material name="r_drive wheel1_color">
+			<material name="l_drive wheel1_color">
 				<color rgba="0.752941 0.752941 0.752941 1"/>
 			</material>
 		</visual>
@@ -749,9 +764,9 @@
 			<origin rpy="0 0 0" xyz="0 0 0"/>
 		</collision>
 	</link>
-	<joint name="r_drive_wheel_joint" type="continuous">
+	<joint name="l_drive_wheel_joint" type="continuous">
 		<parent link="frame_solid:11"/>
-        <child link="r_drive_wheel1"/>
+        <child link="l_drive_wheel1"/>
         <axis xyz="0 1 0"/>
 		<origin rpy="0 -0.443332433305 -1.57079632679" xyz="-0.509833626015 -0.217162738527 0.147715939697"/>
 	</joint>
@@ -786,7 +801,9 @@
   <!--now set the position/orientation of the above box: -->
   <joint name="kinect_joint" type="fixed">
       <axis xyz="0 1 0" />
-      <origin xyz="0.45 0 1.65" rpy="0 0.92 0"/>
+      <!--origin xyz="0.55 0.03 1.585" rpy="0.06 0.95 0"/ -->
+      <!-- elevate the kinect higher, and slight shift to the right -->
+      <origin xyz="0.57 0.02 1.87" rpy="0.04 0.955 0"/>      
       <parent link="base_link"/>
       <child link="kinect_link"/>
   </joint>
