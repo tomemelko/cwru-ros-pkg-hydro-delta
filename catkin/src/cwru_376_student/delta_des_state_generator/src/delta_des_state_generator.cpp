@@ -202,16 +202,18 @@ bool DesStateGenerator::appendPathCallback(cwru_srv::path_service_messageRequest
      */
     int nposes = request.path.poses.size();
     ROS_INFO("received %d vertices", nposes);
-    for (int ipose = 0; ipose < nposes; ipose++) {
+
+    // REMOVED for loop so that we only move to last input segment
+    // for (int ipose = 0; ipose < 1; ipose++) {
         ROS_INFO("pushing a pose onto queue");
-        pose = request.path.poses[ipose];
+        pose = request.path.poses[(nposes-1)];  // indicate that we are only moving to last input segment
         x = pose.pose.position.x;
         y = pose.pose.position.y;
         quaternion = pose.pose.orientation;
         phi = convertPlanarQuat2Phi(quaternion);
         std::cout << "x,y,phi = " << x << ", " << y << ", " << phi << std::endl;
         path_queue_.push(pose);
-    }
+    // }
     int nqueue = path_queue_.size();
     ROS_INFO("queue now contains %d vertices", nqueue);
     response.resp = true; // boring, but valid response info

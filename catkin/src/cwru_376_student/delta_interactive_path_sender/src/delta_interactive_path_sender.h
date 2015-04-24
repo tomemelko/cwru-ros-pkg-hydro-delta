@@ -1,6 +1,6 @@
-/** interactive_path_maker.h header file **/
-#ifndef INTERACTIVE_PATH_MAKER_H_
-#define INTERACTIVE_PATH_MAKER_H_
+/** delta_interactive_path_sender.h header file **/
+#ifndef DELTA_INTERACTIVE_PATH_SENDER_H_
+#define DELTA_INTERACTIVE_PATH_SENDER_H_
 
 #include <math.h>
 #include <stdlib.h>
@@ -27,11 +27,11 @@
 #include <boost/scoped_ptr.hpp>
 #include <boost/bind.hpp>
 
-class InteractivePathMaker
+class DeltaInteractivePathSender
 {
 public:
-    InteractivePathMaker(); //constructor
-    InteractivePathMaker(ros::NodeHandle* nodehandle);
+    DeltaInteractivePathSender(); //constructor
+    DeltaInteractivePathSender(ros::NodeHandle* nodehandle);
     ros::Publisher  nav_path_pub_;
 private:
     // put member data here
