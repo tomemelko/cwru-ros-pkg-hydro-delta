@@ -499,6 +499,7 @@ int main(int argc, char** argv) {
     // have rviz display both of these topics
     ros::Publisher pubCloud = nh.advertise<sensor_msgs::PointCloud2> ("/plane_model", 1);
     ros::Publisher pubPcdCloud = nh.advertise<sensor_msgs::PointCloud2> ("/kinect_pointcloud", 1);
+    ros::Publisher canLocation = nh.advertise<Eigen::Vector3f> ("/can_location", 1);
 
     // service used to interactively change processing modes
     ros::ServiceServer service = nh.advertiseService("process_mode", modeService);

@@ -17,17 +17,17 @@
 #include "trajectory_msgs/JointTrajectory.h"
 #include "trajectory_msgs/JointTrajectoryPoint.h"
 #include <sensor_msgs/JointState.h>
- #include <tf/transform_listener.h>
+#include <tf/transform_listener.h>
 
 //callback to subscribe to marker state
-Eigen::Vector3d g_p;
-Vectorq6x1 g_q_state;
-double g_x,g_y,g_z;
+Eigen::Vector3d goal_position;
+Vectorq6x1 current_position;
+//double g_x, g_y, g_z;
 //geometry_msgs::Quaternion g_quat; // global var for quaternion
 Eigen::Quaterniond g_quat;
-Eigen::Matrix3d g_R;
-Eigen::Affine3d g_A_flange_desired;
-bool g_trigger=false;
+Eigen::Matrix3d goal_rotation;
+Eigen::Affine3d goal_hand_pose;
+bool g_trigger = false;
 
 tf::TransformListener* g_tfListener;
 tf::StampedTransform g_armlink1_wrt_baseLink;
@@ -36,45 +36,43 @@ geometry_msgs::PoseStamped g_marker_pose_wrt_arm_base;
 
 using namespace std;
 
-void markerListenerCB(
-        const visualization_msgs::InteractiveMarkerFeedbackConstPtr &feedback) {
+void markerListenerCB(const visualization_msgs::InteractiveMarkerFeedbackConstPtr &feedback) {
     ROS_INFO_STREAM(feedback->marker_name << " is now at "
-            << feedback->pose.position.x << ", " << feedback->pose.position.y
-            << ", " << feedback->pose.position.z);
-    ROS_INFO_STREAM("marker frame_id is "<<feedback->header.frame_id);
+                    << feedback->pose.position.x << ", " << feedback->pose.position.y
+                    << ", " << feedback->pose.position.z);
+    ROS_INFO_STREAM("marker frame_id is " << feedback->header.frame_id);
     g_marker_pose_in.header = feedback->header;
-    g_marker_pose_in.pose=feedback->pose;
-     g_tfListener->transformPose("link1", g_marker_pose_in, g_marker_pose_wrt_arm_base);
-     
+    g_marker_pose_in.pose = feedback->pose;
+    g_tfListener->transformPose("link1", g_marker_pose_in, g_marker_pose_wrt_arm_base);
+
     //copy to global vars:
-    /*g_p[0] = feedback->pose.position.x;
-    g_p[1] = feedback->pose.position.y;
-    g_p[2] = feedback->pose.position.z;
+    /*goal_position[0] = feedback->pose.position.x;
+    goal_position[1] = feedback->pose.position.y;
+    goal_position[2] = feedback->pose.position.z;
     g_quat.x() = feedback->pose.orientation.x;
     g_quat.y() = feedback->pose.orientation.y;
     g_quat.z() = feedback->pose.orientation.z;
-    g_quat.w() = feedback->pose.orientation.w;   
-    g_R = g_quat.matrix();*/
+    g_quat.w() = feedback->pose.orientation.w;
+    goal_rotation = g_quat.matrix();*/
 
-    g_p[0] = g_marker_pose_wrt_arm_base.pose.position.x;
-    g_p[1] = g_marker_pose_wrt_arm_base.pose.position.y;
-    g_p[2] = g_marker_pose_wrt_arm_base.pose.position.z;
+    // For final project, create a Pose publisher, subscribe to that here, and use that information in this class to make our goal position for home/goal/beer first/etc.
+
+    goal_position[0] = g_marker_pose_wrt_arm_base.pose.position.x;
+    goal_position[1] = g_marker_pose_wrt_arm_base.pose.position.y;
+    goal_position[2] = g_marker_pose_wrt_arm_base.pose.position.z;
     g_quat.x() = g_marker_pose_wrt_arm_base.pose.orientation.x;
     g_quat.y() = g_marker_pose_wrt_arm_base.pose.orientation.y;
     g_quat.z() = g_marker_pose_wrt_arm_base.pose.orientation.z;
-    g_quat.w() = g_marker_pose_wrt_arm_base.pose.orientation.w;   
-    g_R = g_quat.matrix();   
+    g_quat.w() = g_marker_pose_wrt_arm_base.pose.orientation.w;
+    goal_rotation = g_quat.matrix();
 }
 
-//storing current position into g_q_state
-void jointStateCB(
-const sensor_msgs::JointStatePtr &js_msg) {
-    
-    for (int i=0;i<6;i++) {
-        g_q_state[i] = js_msg->position[i];
+//storing current position into current_position
+void jointStateCB(const sensor_msgs::JointStatePtr &js_msg) {
+    for (int i = 0; i < 6; i++) {
+        current_position[i] = js_msg->position[i];
     }
-    //cout<<"g_q_state: "<<g_q_state.transpose()<<endl;
-    
+    //cout<<"current_position: "<<current_position.transpose()<<endl;
 }
 
 bool triggerService(cwru_srv::simple_bool_service_messageRequest& request, cwru_srv::simple_bool_service_messageResponse& response)
@@ -82,81 +80,79 @@ bool triggerService(cwru_srv::simple_bool_service_messageRequest& request, cwru_
     ROS_INFO("service callback activated");
     response.resp = true; // boring, but valid response info
     // grab the most recent IM data and repackage it as an Affine3 matrix to set a target hand pose;
-    g_A_flange_desired.translation() = g_p;
-    g_A_flange_desired.linear() = g_R;
-    cout<<"g_p: "<<g_p.transpose()<<endl;
-    cout<<"R: "<<endl;
-    cout<<g_R<<endl;
-    g_trigger=true; //inform "main" that we have a new goal!
+    goal_hand_pose.translation() = goal_position;
+    goal_hand_pose.linear() = goal_rotation;
+    cout << "goal_position: " << goal_position.transpose() << endl;
+    cout << "R: " << endl;
+    cout << goal_rotation << endl;
+    g_trigger = true; //inform "main" that we have a new goal!
     return true;
 }
 
 //command robot to move to "qvec" using a trajectory message, sent via ROS-I
 void stuff_trajectory( Vectorq6x1 qvec, trajectory_msgs::JointTrajectory &new_trajectory) {
-    
+
     //creating new variables, so three total trajectories
     trajectory_msgs::JointTrajectoryPoint trajectory_point1;
-    trajectory_msgs::JointTrajectoryPoint trajectory_point2; 
-     
-    
+    trajectory_msgs::JointTrajectoryPoint trajectory_point2;
+
     new_trajectory.points.clear(); //clear points in the new trajectory
     new_trajectory.joint_names.clear();
-    new_trajectory.joint_names.push_back("joint_1"); //naming the joints? why?
+    new_trajectory.joint_names.push_back("joint_1"); //naming the joints?
     new_trajectory.joint_names.push_back("joint_2");
     new_trajectory.joint_names.push_back("joint_3");
     new_trajectory.joint_names.push_back("joint_4");
     new_trajectory.joint_names.push_back("joint_5");
-    new_trajectory.joint_names.push_back("joint_6");   
+    new_trajectory.joint_names.push_back("joint_6");
 
-    new_trajectory.header.stamp = ros::Time::now();  
-    
+    new_trajectory.header.stamp = ros::Time::now();
+
     //clear positions in these trajectories
-    trajectory_point1.positions.clear();    
-    trajectory_point2.positions.clear(); 
+    trajectory_point1.positions.clear();
+    trajectory_point2.positions.clear();
     //fill in the points of the trajectory: initially, all home angles
-    for (int ijnt=0;ijnt<6;ijnt++) {
-        trajectory_point1.positions.push_back(g_q_state[ijnt]); // stuff in position commands for 6 joints
+    for (int ijnt = 0; ijnt < 6; ijnt++) {
+        trajectory_point1.positions.push_back(current_position[ijnt]); // stuff in position commands for 6 joints
         //should also fill in trajectory_point.time_from_start
-        trajectory_point2.positions.push_back(qvec[ijnt]); // stuff in position commands for 6 joints 
-
+        trajectory_point2.positions.push_back(qvec[ijnt]); // stuff in position commands for 6 joints
     }
 
     // fill in the target pose: really should fill in a sequence of poses leading to this goal
-    
+
     /*for (int ijnt=0;ijnt<6;ijnt++) {
-            trajectory_point2.positions[ijnt] = qvec[ijnt] + g_q_state[ijnt];
-    }*/ 
+            trajectory_point2.positions[ijnt] = qvec[ijnt] + current_position[ijnt];
+    }*/
 
     //tell robot be at the final position at this time, but we want to give it multiple time durations as it is moving, creating a trapezoidal profile
-    trajectory_point1.time_from_start =    ros::Duration(0);  
-    //trajectory_point2.time_from_start =    ros::Duration(2.0); 
-    trajectory_point2.time_from_start =    ros::Duration(6.0);  //changed from 4.0 to 6.0     
+    trajectory_point1.time_from_start = ros::Duration(0);
+    //trajectory_point2.time_from_start =    ros::Duration(2.0);
+    trajectory_point2.time_from_start = ros::Duration(6.0);  //changed from 4.0 to 6.0
 
     // start from home pose... really, should should start from current pose!
-    new_trajectory.points.push_back(trajectory_point1); // add this single trajectory point to the trajectory vector   
+    new_trajectory.points.push_back(trajectory_point1); // add this single trajectory point to the trajectory vector
     //new_trajectory.points.push_back(trajectory_point2); // quick hack--return to home pose
 
     new_trajectory.points.push_back(trajectory_point2); // append this point to trajectory
 }
 
-
 int main(int argc, char** argv) {
     ros::init(argc, argv, "simple_marker_listener"); // this will be the node name;
     ros::NodeHandle nh;
-    ros::Publisher pub = nh.advertise<trajectory_msgs::JointTrajectory>("joint_path_command", 1);  
+    ros::Publisher pub = nh.advertise<trajectory_msgs::JointTrajectory>("joint_path_command", 1);
     ROS_INFO("setting up subscribers ");
-    ros::Subscriber sub_js = nh.subscribe("/joint_states",1,jointStateCB);
+    ros::Subscriber sub_js = nh.subscribe("/joint_states", 1, jointStateCB);
     ros::Subscriber sub_im = nh.subscribe("example_marker/feedback", 1, markerListenerCB);
-    ros::ServiceServer service = nh.advertiseService("move_trigger", triggerService);   
-    
+
+    ros::ServiceServer service = nh.advertiseService("move_trigger", triggerService);
+
     Eigen::Vector3d p;
-    Eigen::Vector3d n_des,t_des,b_des;
+    Eigen::Vector3d n_des, t_des, b_des;
     std::vector<Vectorq6x1> q6dof_solns;
     Vectorq6x1 qvec;
-    ros::Rate sleep_timer(10.0); //10Hz update rate    
+    ros::Rate sleep_timer(10.0); //10Hz update rate
     Irb120_fwd_solver irb120_fwd_solver; //instantiate forward and IK solvers
     Irb120_IK_solver ik_solver;
-    Eigen::Vector3d n_urdf_wrt_DH,t_urdf_wrt_DH,b_urdf_wrt_DH;
+    Eigen::Vector3d n_urdf_wrt_DH, t_urdf_wrt_DH, b_urdf_wrt_DH;
     // in home pose, R_urdf = I
     //DH-defined tool-flange axes point as:
     // z = 1,0,0
@@ -167,131 +163,107 @@ int main(int argc, char** argv) {
     // y_urdf_wrt_DH = y_DH = [0;1;0]
     // z_urdf_wrt_DH = -x_DH = [-1; 0; 0]
     // so, express R_urdf_wrt_DH as:
-    n_urdf_wrt_DH <<0,0,1;
-    t_urdf_wrt_DH <<0,1,0;
-    b_urdf_wrt_DH <<-1,0,0;
+    n_urdf_wrt_DH << 0, 0, 1;
+    t_urdf_wrt_DH << 0, 1, 0;
+    b_urdf_wrt_DH << -1, 0, 0;
     Eigen::Matrix3d R_urdf_wrt_DH;
     R_urdf_wrt_DH.col(0) = n_urdf_wrt_DH;
     R_urdf_wrt_DH.col(1) = t_urdf_wrt_DH;
-    R_urdf_wrt_DH.col(2) = b_urdf_wrt_DH;    
+    R_urdf_wrt_DH.col(2) = b_urdf_wrt_DH;
 
     trajectory_msgs::JointTrajectory new_trajectory; // an empty trajectory
 
-    
     //qvec<<0,0,0,0,0,0;
     Eigen::Affine3d A_flange_des_DH;
-    
+
     //   A_fwd_DH = irb120_fwd_solver.fwd_kin_solve(qvec); //fwd_kin_solve
 
     //std::cout << "A rot: " << std::endl;
     //std::cout << A_fwd_DH.linear() << std::endl;
-    //std::cout << "A origin: " << A_fwd_DH.translation().transpose() << std::endl;   
-  
+    //std::cout << "A origin: " << A_fwd_DH.translation().transpose() << std::endl;
+
     g_tfListener = new tf::TransformListener;  //create a transform listener
-    
+
     // wait to start receiving valid tf transforms between map and odom:
-    bool tferr=true;
+    bool tferr = true;
     ROS_INFO("waiting for tf between base_link and link1 of arm...");
     while (tferr) {
-        tferr=false;
+        tferr = false;
         try {
-                //try to lookup transform from target frame "odom" to source frame "map"
-            //The direction of the transform returned will be from the target_frame to the source_frame. 
-             //Which if applied to data, will transform data in the source_frame into the target_frame. See tf/CoordinateFrameConventions#Transform_Direction
-                g_tfListener->lookupTransform("base_link", "link1", ros::Time(0), g_armlink1_wrt_baseLink);
-            } catch(tf::TransformException &exception) {
-                ROS_ERROR("%s", exception.what());
-                tferr=true;
-                ros::Duration(0.5).sleep(); // sleep for half a second
-                ros::spinOnce();                
-            }   
+            //try to lookup transform from target frame "odom" to source frame "map"
+            //The direction of the transform returned will be from the target_frame to the source_frame.
+            //Which if applied to data, will transform data in the source_frame into the target_frame. See tf/CoordinateFrameConventions#Transform_Direction
+            g_tfListener->lookupTransform("base_link", "link1", ros::Time(0), g_armlink1_wrt_baseLink);
+        } catch (tf::TransformException &exception) {
+            ROS_ERROR("%s", exception.what());
+            tferr = true;
+            ros::Duration(0.5).sleep(); // sleep for half a second
+            ros::spinOnce();
+        }
     }
     ROS_INFO("tf is good");
-    // from now on, tfListener will keep track of transforms        
-      
+    // from now on, tfListener will keep track of transforms
 
     int nsolns;
-   
-    
-    while(ros::ok()) {
-            ros::spinOnce();
-            if (g_trigger) {
-                double smallest_sum = 10000;
-                double current_sum = 0;
-                int index_of_smallest_sum = 0;
-                // ooh!  excitement time!  got a new tool pose goal!
-                g_trigger=false; // reset the trigger
-                //is this point reachable?
-                A_flange_des_DH = g_A_flange_desired;
-                A_flange_des_DH.linear() = g_A_flange_desired.linear()*R_urdf_wrt_DH.transpose();
-                cout<<"R des DH: "<<endl;
-                cout<<A_flange_des_DH.linear()<<endl;
-                nsolns = ik_solver.ik_solve(A_flange_des_DH);
-               
-                ROS_INFO("there are %d solutions",nsolns);
 
-               
+    while (ros::ok()) {
+        ros::spinOnce();
+        if (g_trigger) {
+            double smallest_sum = 10000;
+            double current_sum = 0;
+            int index_of_smallest_sum = 0;
+            // ooh!  excitement time!  got a new tool pose goal!
+            g_trigger = false; // reset the trigger
+            //is this point reachable?
+            A_flange_des_DH = goal_hand_pose;
+            A_flange_des_DH.linear() = goal_hand_pose.linear() * R_urdf_wrt_DH.transpose();
+            cout << "R des DH: " << endl;
+            cout << A_flange_des_DH.linear() << endl;
+            nsolns = ik_solver.ik_solve(A_flange_des_DH);
 
-                if (nsolns == 1)  //if only one solution, then use that solution
-                {
-                    ik_solver.get_solns(q6dof_solns);
-                    qvec = q6dof_solns[0];
-                    stuff_trajectory(qvec,new_trajectory);
+            ROS_INFO("there are %d solutions", nsolns);
 
-                        pub.publish(new_trajectory);
-                }
-                else if (nsolns > 1) 
-                {     //pick solution with smallest angles abby should move
-                    ik_solver.get_solns(q6dof_solns);  
+            if (nsolns == 1)  //if only one solution, then use that solution
+            {
+                ik_solver.get_solns(q6dof_solns);
+                qvec = q6dof_solns[0];
+                stuff_trajectory(qvec, new_trajectory);
 
-                    for(int i = 0; i < nsolns; i++)
-                    {
-                        for(int j = 0; j < 6; j++)
-                            {
-                                current_sum += abs(q6dof_solns[i](j,0)) * ((6-j)*20);
-                            }
-                        if(i == 0)
-                        {
-                            smallest_sum = current_sum;  //go ahead and make the first solution the smallest soluion
-                        }
-                        else
-                        {
-                            if(current_sum < smallest_sum) 
-                            {
-                                smallest_sum = current_sum;
-                                index_of_smallest_sum = i;  //keep track of which index has the smallest sum
-                            }
-                        }
-                        current_sum = 0;
-                    } 
-                    ROS_INFO("using %d index",index_of_smallest_sum);              
-                    qvec = q6dof_solns[index_of_smallest_sum];
-                    
-                    stuff_trajectory(qvec,new_trajectory);
-                   
-
-                        pub.publish(new_trajectory);
-                    
-                }
-                 
-
-                
-                /*if (nsolns>0) {
-                    ik_solver.get_solns(q6dof_solns);
-                    qvec = q6dof_solns[0]; // arbitrarily choose first soln
-                    stuff_trajectory(qvec,new_trajectory);
-
-                        pub.publish(new_trajectory);
-                    
-                }
-                */
+                pub.publish(new_trajectory);
             }
-            
-            sleep_timer.sleep();    
-            
+            else if (nsolns > 1)
+            {   //pick solution with smallest angles abby should move
+                ik_solver.get_solns(q6dof_solns);
+
+                for (int i = 0; i < nsolns; i++)
+                {
+                    for (int j = 0; j < 6; j++)
+                    {
+                        current_sum += abs(q6dof_solns[i](j, 0)) * ((6 - j) * 20);
+                    }
+                    if (i == 0)
+                    {
+                        smallest_sum = current_sum;  //go ahead and make the first solution the smallest soluion
+                    }
+                    else
+                    {
+                        if (current_sum < smallest_sum)
+                        {
+                            smallest_sum = current_sum;
+                            index_of_smallest_sum = i;  //keep track of which index has the smallest sum
+                        }
+                    }
+                    current_sum = 0;
+                }
+                ROS_INFO("using %d index", index_of_smallest_sum);
+                qvec = q6dof_solns[index_of_smallest_sum];
+
+                stuff_trajectory(qvec, new_trajectory);
+
+                pub.publish(new_trajectory);
+            }
+        }
+        sleep_timer.sleep();
     }
-    
     return 0;
 }
-
-
