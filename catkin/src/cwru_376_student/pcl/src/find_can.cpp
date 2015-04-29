@@ -58,7 +58,7 @@ void make_can_cloud(PointCloud<pcl::PointXYZ>::Ptr canCloud, double r_can, doubl
 // a bunch of pointcloud holders, all global
 
 //pcl::PointCloud<pcl::PointXYZ>::Ptr g_pclKinect(new PointCloud<pcl::PointXYZ>);
-pcl::PointCloud<pcl::PointXYZ>::Ptr g_cloud_from_disk(new pcl::PointCloud<pcl::PointXYZ>); //this one is read from PCD file on disk
+pcl::PointCloud<pcl::PointXYZ>::Ptr g_cloud_from_hardware(new pcl::PointCloud<pcl::PointXYZ>); //this one is read from PCD file on disk
 pcl::PointCloud<pcl::PointXYZ>::Ptr g_cloud_out(new pcl::PointCloud<pcl::PointXYZ>); // holder for processed point clouds
 pcl::PointCloud<pcl::PointXYZ>::Ptr g_cloud_transformed(new pcl::PointCloud<pcl::PointXYZ>); // holder for processed point clouds
 pcl::PointCloud<pcl::PointXYZ>::Ptr g_display_cloud(new pcl::PointCloud<pcl::PointXYZ>); // this cloud gets published--viewable in rviz
@@ -73,7 +73,7 @@ const int IDENTIFY_PLANE = 0;
 const int FIND_PNTS_ABOVE_PLANE = 1;
 const int COMPUTE_CYLINDRICAL_FIT_ERR_INIT = 2;
 const int COMPUTE_CYLINDRICAL_FIT_ERR_ITERATE = 3;
-//const int MAKE_CAN_CLOUD = 4;
+const int PUBLISH_CAN_LOCATION = 4;
 const int FIND_ON_TABLE = 5;
 
 const double Z_EPS = 0.01; //choose a tolerance for plane fitting, e.g. 1cm
@@ -86,6 +86,7 @@ Eigen::Vector3f g_cylinder_origin; // origin of model for cylinder registration
 int g_pcl_process_mode = 0; // mode--set by service
 bool g_trigger = false; // a trigger, to tell "main" to process points in the currently selected mode
 bool g_processed_patch = false; // a state--to let us know if a default set of plane_parameters exists
+bool g_kinect_online = false;
 
 //more globals--to share info on planes and patches
 Eigen::Vector4f g_plane_params;
@@ -119,6 +120,11 @@ void selectCB(const sensor_msgs::PointCloud2ConstPtr& cloud) {
     process_patch(iselect_filtered, g_patch_centroid, g_plane_params); // operate on selected points to remove outliers and
     //find centroid and plane params
     g_processed_patch = true; // update our states to note that we have process a patch, and thus have valid plane info
+}
+
+void kinectCB(const sensor_msgs::PointCloud2ConstPtr& cloud) {
+    pcl::fromROSMsg(*cloud, *g_cloud_from_hardware);
+    g_kinect_online = true; // update our states to note that we have process a patch, and thus have valid plane info
 }
 
 // process patch: filter selected points to remove outliers;
@@ -169,10 +175,10 @@ void process_patch(std::vector<int> &iselect_filtered, Eigen::Vector3f &centroid
 }
 
 
-// this function operates on the global cloud pointer g_cloud_from_disk;
+// this function operates on the global cloud pointer g_cloud_from_hardware;
 // g_cloud_transformed contains a cloud rotated s.t. identified plane has normal (0,0,1),
 //  indices_z_eps contain the indices of the points on the identified plane;
-//  g_display_cloud is a reduced version of g_cloud_from_disk, w/ only the planar points (expressed in original frame)
+//  g_display_cloud is a reduced version of g_cloud_from_hardware, w/ only the planar points (expressed in original frame)
 
 void find_plane(Eigen::Vector4f plane_params, std::vector<int> &indices_z_eps) {
     float curvature;
@@ -205,15 +211,15 @@ void find_plane(Eigen::Vector4f plane_params, std::vector<int> &indices_z_eps) {
     double z_eps = Z_EPS; // choose a tolerance for plane inclusion +/- z; 1cm??
 
     //OK...let's try transforming the ENTIRE point cloud:
-    //transform_cloud(g_cloud_from_disk, R_transpose, g_cloud_transformed); // rotate the entire point cloud
-    transform_cloud(g_cloud_from_disk, g_A_plane.inverse(), g_cloud_transformed); // transform the entire point cloud
+    //transform_cloud(g_cloud_from_hardware, R_transpose, g_cloud_transformed); // rotate the entire point cloud
+    transform_cloud(g_cloud_from_hardware, g_A_plane.inverse(), g_cloud_transformed); // transform the entire point cloud
     // g_cloud_transformed is now expressed in the frame of the selected plane;
     // let's extract all of the points (i.e., name the indices of these points) for which the z value corresponds to the chosen plane,
     // within tolerance z_eps
     //filter_cloud_z(g_cloud_transformed, g_z_plane_nom, z_eps, indices_z_eps);
     filter_cloud_z(g_cloud_transformed, 0.0, z_eps, indices_z_eps); //transform --> z-values of points on plane should be 0.0
     // point indices of interest are in indices_z_eps; use this to extract this subset from the parent cloud to create a new cloud
-    copy_cloud(g_cloud_from_disk, indices_z_eps, g_display_cloud); //g_display_cloud is being published regularly by "main"
+    copy_cloud(g_cloud_from_hardware, indices_z_eps, g_display_cloud); //g_display_cloud is being published regularly by "main"
 
 }
 
@@ -491,32 +497,21 @@ int main(int argc, char** argv) {
     ros::Rate rate(2);
     // Subscribers
     // use the following, if have "live" streaming from a Kinect
-    //ros::Subscriber getPCLPoints = nh.subscribe<sensor_msgs::PointCloud2> ("/kinect/depth/points", 1, kinectCB);
+    ros::Subscriber getPCLPoints = nh.subscribe<sensor_msgs::PointCloud2> ("/kinect/depth/points", 1, kinectCB);
 
     // subscribe to "selected_points", which is published by Rviz tool
     ros::Subscriber selectedPoints = nh.subscribe<sensor_msgs::PointCloud2> ("/selected_points", 1, selectCB);
 
     // have rviz display both of these topics
     ros::Publisher pubCloud = nh.advertise<sensor_msgs::PointCloud2> ("/plane_model", 1);
-    ros::Publisher pubPcdCloud = nh.advertise<sensor_msgs::PointCloud2> ("/kinect_pointcloud", 1);
-    ros::Publisher canLocation = nh.advertise<Eigen::Vector3f> ("/can_location", 1);
+    ros::Publisher pubCanLocation = nh.advertise<geometry_msgs::Vector3> ("/can_location", 1);
+    ros::Publisher pubCanLocationViz = nh.advertise<geometry_msgs::PoseStamped> ("/can_location_viz", 1);
 
     // service used to interactively change processing modes
     ros::ServiceServer service = nh.advertiseService("process_mode", modeService);
 
     std::vector<int> indices_pts_above_plane;
 
-    //load a pointcloud from file:
-    if (pcl::io::loadPCDFile<pcl::PointXYZ> ("test_pcd.pcd", *g_cloud_from_disk) == -1) //* load the file
-    {
-        PCL_ERROR("Couldn't read file test_pcd.pcd \n");
-        return (-1);
-    }
-    std::cout << "Loaded "
-              << g_cloud_from_disk->width * g_cloud_from_disk->height
-              << " data points from test_pcd.pcd  " << std::endl;
-
-    g_cloud_from_disk->header.frame_id = "world"; //looks like PCD does not encode the reference frame id
     double z_threshold = 0.0;
     double E;
     double dEdCx = 0.0;
@@ -526,7 +521,10 @@ int main(int argc, char** argv) {
     Eigen::Vector3f can_center_wrt_plane;
     Eigen::Affine3f A_plane_to_sensor;
     while (ros::ok()) {
-        if (g_trigger) {
+        if (!g_kinect_online) {
+            ROS_INFO("Waiting on info from the kinect");
+        }
+        else if (g_trigger) {
             g_trigger = false; // reset the trigger
 
             switch (g_pcl_process_mode) { // what we do here depends on our mode; mode is settable via a service
@@ -543,7 +541,7 @@ int main(int argc, char** argv) {
 
                 filter_cloud_above_z(g_cloud_transformed, z_threshold, indices_pts_above_plane);
                 //extract these points--but in original, non-rotated frame; useful for display
-                copy_cloud(g_cloud_from_disk, indices_pts_above_plane, g_display_cloud);
+                copy_cloud(g_cloud_from_hardware, indices_pts_above_plane, g_display_cloud);
                 break;
             case COMPUTE_CYLINDRICAL_FIT_ERR_INIT:
 
@@ -551,7 +549,7 @@ int main(int argc, char** argv) {
                 make_can_cloud(g_display_cloud, R_CYLINDER, H_CYLINDER);
                 // rough guess--estimate coords of cylinder from  centroid of most recent patch
                 for (int i = 0; i < 3; i++) {
-                    g_cylinder_origin[i] = g_patch_centroid[i]; // DO BETTER THAN THIS
+                    g_cylinder_origin[i] = g_patch_centroid[i];
                 }
                 g_cylinder_origin[1] -= R_CYLINDER;
 
@@ -578,7 +576,7 @@ int main(int argc, char** argv) {
                 cout << "current cx,cy = " << can_center_wrt_plane[0] << ", " << can_center_wrt_plane[1] << endl;
                 // try to do something smart.  can try using dEdCy and dEdCx
 
-                can_center_wrt_plane[0] += dEdCx; //THIS IS DUMB; DO SOMETHING SMART TO IMPROVE CENTER ESTIMATE
+                can_center_wrt_plane[0] += dEdCx;
                 can_center_wrt_plane[1] += dEdCy;
 
                 ROS_INFO("attempting to fit points to cylinder, radius %f, cx = %f, cy = %f", R_CYLINDER, can_center_wrt_plane[0], can_center_wrt_plane[1]);
@@ -592,11 +590,28 @@ int main(int argc, char** argv) {
                 g_cylinder_origin =    g_A_plane * can_center_wrt_plane;
                 A_plane_to_sensor.translation() = g_cylinder_origin;
                 transform_cloud(g_canCloud, A_plane_to_sensor, g_display_cloud);
-
                 break;
             }
 
+            case PUBLISH_CAN_LOCATION:
+            {
+                geometry_msgs::Vector3 canLocation;
+                canLocation.x = g_cylinder_origin[0];
+                canLocation.y = g_cylinder_origin[1];
+                canLocation.z = g_cylinder_origin[2];
+                pubCanLocation.publish(canLocation);
 
+                geometry_msgs::PoseStamped canLocationViz;
+                canLocationViz.pose.position.x = g_cylinder_origin[0];
+                canLocationViz.pose.position.y = g_cylinder_origin[1];
+                canLocationViz.pose.position.z = g_cylinder_origin[2];
+                canLocationViz.pose.orientation.x = 0;
+                canLocationViz.pose.orientation.y = 0;
+                canLocationViz.pose.orientation.z = 0;
+                canLocationViz.pose.orientation.w = 0;
+                pubCanLocationViz.publish(canLocationViz);
+                break;
+            }
             case FIND_ON_TABLE:
                 ROS_INFO("filtering for objects on most recently defined plane: not implemented yet");
                 //really, this is steps 0,1,2 and 3, above
@@ -606,8 +621,6 @@ int main(int argc, char** argv) {
 
             }
         }
-
-        pubPcdCloud.publish(g_cloud_from_disk); //keep displaying the original scene
 
         pubCloud.publish(g_display_cloud); //and also display whatever we choose to put in here
 
