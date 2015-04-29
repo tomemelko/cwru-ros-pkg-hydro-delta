@@ -52,10 +52,10 @@ std::vector<int> g_indices_of_plane; //indices of patch that do not contain outl
 
 int main(int argc, char** argv) {
     // Do some initialization here
-    ros::init(argc, argv, "process_pcl");
+    ros::init(argc, argv, "publish_pcd");
     ros::NodeHandle nh;
     ros::Rate rate(2);
-    ros::Publisher pubPcdCloud = nh.advertise<sensor_msgs::PointCloud2> ("/kinect_pointcloud", 1);
+    ros::Publisher pubPcdCloud = nh.advertise<sensor_msgs::PointCloud2> ("/kinect/depth/points", 1);
 
     //load a pointcloud from file: 
     if (pcl::io::loadPCDFile<pcl::PointXYZ> ("test_pcd.pcd", *g_cloud_from_disk) == -1) //* load the file

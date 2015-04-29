@@ -75,12 +75,14 @@ const int COMPUTE_CYLINDRICAL_FIT_ERR_INIT = 2;
 const int COMPUTE_CYLINDRICAL_FIT_ERR_ITERATE = 3;
 const int PUBLISH_CAN_LOCATION = 4;
 const int FIND_ON_TABLE = 5;
+const int CAN_SHRINK = 10;
+const int CAN_GROW = 11;
 
 const double Z_EPS = 0.01; //choose a tolerance for plane fitting, e.g. 1cm
 const double R_EPS = 0.05; // choose a tolerance for cylinder-fit outliers
 
-const double R_CYLINDER = 0.085; //estimated from ruler tool...example to fit a cyclinder of this radius to data
-const double H_CYLINDER = 0.3; // estimated height of cylinder
+double R_CYLINDER = 0.085; //estimated from ruler tool...example to fit a cyclinder of this radius to data
+double H_CYLINDER = 0.3; // estimated height of cylinder
 Eigen::Vector3f g_cylinder_origin; // origin of model for cylinder registration
 
 int g_pcl_process_mode = 0; // mode--set by service
@@ -429,7 +431,7 @@ void make_can_cloud(PointCloud<pcl::PointXYZ>::Ptr canCloud, double r_can, doubl
             i++;
         }
     //canCloud->header = inputCloud->header;
-    canCloud->header.frame_id = "world";
+    canCloud->header.frame_id = "kinect_pc_frame";
     //canCloud->header.stamp = ros::Time::now();
     canCloud->is_dense = true;
     canCloud->width = npts;
@@ -615,6 +617,18 @@ int main(int argc, char** argv) {
             case FIND_ON_TABLE:
                 ROS_INFO("filtering for objects on most recently defined plane: not implemented yet");
                 //really, this is steps 0,1,2 and 3, above
+                break;
+            case CAN_SHRINK:
+                R_CYLINDER *= .95;
+                H_CYLINDER *= .95;
+                g_trigger = true;
+                g_pcl_process_mode = 2;
+                break;
+            case CAN_GROW:
+                R_CYLINDER *= 1.05;
+                H_CYLINDER *= 1.05;
+                g_trigger = true;
+                g_pcl_process_mode = 2;
                 break;
             default:
                 ROS_WARN("this mode is not implemented");
