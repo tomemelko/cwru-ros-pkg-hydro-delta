@@ -32,7 +32,7 @@ SteeringController::SteeringController(ros::NodeHandle* nodehandle):nh_(*nodehan
  
     bool tferr=true;
     ROS_INFO("waiting for tf...");
-    /*while (tferr) {
+    while (tferr) {
         tferr=false;
         try {
                 //try to lookup transform from target frame "odom" to source frame "map"
@@ -45,7 +45,7 @@ SteeringController::SteeringController(ros::NodeHandle* nodehandle):nh_(*nodehan
                 ros::Duration(0.5).sleep(); // sleep for half a second
                 ros::spinOnce();                
             }   
-    }*/
+    }
     ROS_INFO("tf is good");
     // from now on, tfListener will keep track of transforms from map frame to target frame
     //initialize desired state, in case this is not yet being published adequately
