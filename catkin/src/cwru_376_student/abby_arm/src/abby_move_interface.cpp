@@ -36,14 +36,14 @@ geometry_msgs::PoseStamped g_marker_pose_wrt_arm_base;
 
 using namespace std;
 
-void poseListenerCB(const geometry_msgs::PoseStamped &feedback) {
+void poseListenerCB(const geometry_msgs::PoseStamped &g_marker_pose_wrt_arm_base) {
     ROS_INFO_STREAM("Goal pose is now at "
-                    << feedback.pose.position.x << ", " << feedback.pose.position.y
-                    << ", " << feedback.pose.position.z);
-    ROS_INFO_STREAM("marker frame_id is " << feedback.header.frame_id);
-    g_marker_pose_in.header = feedback.header;
-    g_marker_pose_in.pose = feedback.pose;
-    g_tfListener->transformPose("link1", g_marker_pose_in, g_marker_pose_wrt_arm_base);
+                    << g_marker_pose_wrt_arm_base.pose.position.x << ", " << g_marker_pose_wrt_arm_base.pose.position.y
+                    << ", " << g_marker_pose_wrt_arm_base.pose.position.z);
+    ROS_INFO_STREAM("marker frame_id is " << g_marker_pose_wrt_arm_base.header.frame_id);
+    g_marker_pose_in.header = g_marker_pose_wrt_arm_base.header;
+    g_marker_pose_in.pose = g_marker_pose_wrt_arm_base.pose;
+    //g_tfListener->transformPose("link1", g_marker_pose_in, g_marker_pose_wrt_arm_base);
 
     // For final project, create a Pose publisher, subscribe to that here, and use that information in this class to make our goal position for home/goal/beer first/etc.
 
