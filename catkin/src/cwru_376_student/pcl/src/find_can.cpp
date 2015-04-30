@@ -634,7 +634,7 @@ int main(int argc, char** argv) {
                 g_trigger = true;
                 g_pcl_process_mode = 2;
                 break;
-            case FIT_LEFT:
+            case FIT_LEFT: {
                 can_center_wrt_plane[0] += .01;
                 can_center_wrt_plane[1] += 0;
 
@@ -650,7 +650,8 @@ int main(int argc, char** argv) {
                 A_plane_to_sensor.translation() = g_cylinder_origin;
                 transform_cloud(g_canCloud, A_plane_to_sensor, g_display_cloud);
                 break;
-            case FIT_FORWARD:
+            }
+            case FIT_FORWARD: {
                 can_center_wrt_plane[0] += 0;
                 can_center_wrt_plane[1] += .01;
 
@@ -666,7 +667,8 @@ int main(int argc, char** argv) {
                 A_plane_to_sensor.translation() = g_cylinder_origin;
                 transform_cloud(g_canCloud, A_plane_to_sensor, g_display_cloud);
                 break;
-            case FIT_RIGHT:
+            }
+            case FIT_RIGHT: {
                 can_center_wrt_plane[0] -= .01;
                 can_center_wrt_plane[1] -= 0;
 
@@ -682,7 +684,8 @@ int main(int argc, char** argv) {
                 A_plane_to_sensor.translation() = g_cylinder_origin;
                 transform_cloud(g_canCloud, A_plane_to_sensor, g_display_cloud);
                 break;
-            case FIT_BACKWARD:
+            }
+            case FIT_BACKWARD: {
                 can_center_wrt_plane[0] -= 0;
                 can_center_wrt_plane[1] -= .01;
 
@@ -698,6 +701,7 @@ int main(int argc, char** argv) {
                 A_plane_to_sensor.translation() = g_cylinder_origin;
                 transform_cloud(g_canCloud, A_plane_to_sensor, g_display_cloud);
                 break;
+            }
             default:
                 ROS_WARN("this mode is not implemented");
 

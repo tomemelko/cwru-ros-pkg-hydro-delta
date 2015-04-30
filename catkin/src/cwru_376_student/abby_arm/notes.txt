@@ -18,3 +18,52 @@ from home to grab:
 home: {x: .6, y: -0.55, z: 1.1}
 mid-1: {x: 1, y: -0.275, z: 1.1}
 mid-2: {x: 1.25, y: 0, z: 1.2}
+
+
+ssh -X abby@192.168.0.200
+gnome-terminal &
+On Atlas run ./abby_push.sh
+Edit Abby's .bashrc to use delta
+On Abby run catkin_make
+Then you can open all the tabs on Abby's terminal
+in term-tab you ran catkin_make you need to '. catkin/devel/setup.bash'
+
+
+TO RUN ARM:
+roslaunch cwru_base start_abby_base.launch
+roslaunch industrial_robot_client robot_interface_download.launch robot_ip:=192.168.0.50
+
+Remote viz:
+. ~/ros_workspace/cwru-ros-pkg-hydro-delta/utils/connect/connect_abby.bash
+roslaunch cwru_urdf abby_w_arm_rviz.launch
+
+YAY MOVE STUFF PLACES YAY
+
+After we're in position:
+	switch rviz fixed_frame to 'base_link'
+	rosrun pcl find_can_delta
+	rosrun abby_arm arm_commander
+	rosrun abby_move_interface
+
+rosservice call /move_tigger true
+rosservice call /process_mode 
+	0: Identify plane
+	1: Identify can
+	2: Fit initial
+	3: Adjust
+	4: Publish Location
+	10: Shrink Can
+	11: Grow Can
+	20: Move fit "left"
+	21: Move fit "forward"
+	22: Move fit "right"
+	23: Move fit "backward"
+rosservice call /arm_mode 
+	0: Home
+	1: Mid-point-1
+	2: Mid-point-2
+	3: Above Can
+	4: Grab position
+	5: Grab (doesn't do anything)
+	10: Move claw up manually
+	11: Move claw down manually
