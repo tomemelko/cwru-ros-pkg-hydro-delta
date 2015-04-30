@@ -99,6 +99,7 @@ Eigen::Affine3f g_A_plane;
 double g_z_plane_nom;
 std::vector<int> g_indices_of_plane; //indices of patch that do not contain outliers
 
+
 //use this service to set processing modes interactively
 bool modeService(cwru_srv::simple_int_service_messageRequest& request, cwru_srv::simple_int_service_messageResponse& response) {
     ROS_INFO("mode select service callback activated");
@@ -421,7 +422,7 @@ void make_can_cloud(PointCloud<pcl::PointXYZ>::Ptr canCloud, double r_can, doubl
             npts++;
     canCloud->points.resize(npts);
     int i = 0;
-    for (theta = 0; theta < 2.0 * M_PI; theta += 0.3)
+    for (theta = 0; theta < 2.0 * M_PI; theta += 0.3) {
         for (h = 0; h < h_can; h += 0.01) {
 
             pt[0] = r_can * cos(theta);
@@ -430,8 +431,10 @@ void make_can_cloud(PointCloud<pcl::PointXYZ>::Ptr canCloud, double r_can, doubl
             canCloud->points[i].getVector3fMap() = pt;
             i++;
         }
+    }
     //canCloud->header = inputCloud->header;
-    canCloud->header.frame_id = "kinect_pc_frame";
+    canCloud->header.frame_id = "camera_depth_optical_frame";
+    //canCloud->header.frame_id = "odom";
     //canCloud->header.stamp = ros::Time::now();
     canCloud->is_dense = true;
     canCloud->width = npts;
@@ -493,13 +496,18 @@ void compute_radial_error(PointCloud<pcl::PointXYZ>::Ptr inputCloud, std::vector
 }
 
 int main(int argc, char** argv) {
+
+    for (int i = 0; i < 17; i++) {
+        R_CYLINDER *= .95;
+        H_CYLINDER *= .95;
+    }
     // Do some initialization here
     ros::init(argc, argv, "process_pcl");
     ros::NodeHandle nh;
     ros::Rate rate(2);
     // Subscribers
     // use the following, if have "live" streaming from a Kinect
-    ros::Subscriber getPCLPoints = nh.subscribe<sensor_msgs::PointCloud2> ("/kinect/depth/points", 1, kinectCB);
+    ros::Subscriber getPCLPoints = nh.subscribe<sensor_msgs::PointCloud2> ("/camera/depth/points", 1, kinectCB);
 
     // subscribe to "selected_points", which is published by Rviz tool
     ros::Subscriber selectedPoints = nh.subscribe<sensor_msgs::PointCloud2> ("/selected_points", 1, selectCB);
