@@ -32,7 +32,7 @@ DesStateGenerator::DesStateGenerator(ros::NodeHandle* nodehandle) : nh_(*nodehan
     // wait to start receiving valid tf transforms between map and odom:
     bool tferr=true;
     ROS_INFO("waiting for tf between map and odom...");
-    while (tferr) {
+    /*while (tferr) {
         tferr=false;
         try {
                 //try to lookup transform from target frame "odom" to source frame "map"
@@ -45,7 +45,7 @@ DesStateGenerator::DesStateGenerator(ros::NodeHandle* nodehandle) : nh_(*nodehan
                 ros::Duration(0.5).sleep(); // sleep for half a second
                 ros::spinOnce();                
             }   
-    }
+    }*/
     ROS_INFO("tf is good");
     // from now on, tfListener will keep track of transforms
 
@@ -270,7 +270,7 @@ double DesStateGenerator::compute_heading_from_pose2_pose1(geometry_msgs::Pose p
 //DUMMY...
 geometry_msgs::PoseStamped DesStateGenerator::map_to_odom_pose(geometry_msgs::PoseStamped map_pose) {
     // to use tf, need to convert coords from a geometry_msgs::Pose into a tf::Point
-    tf::Point tf_map_goal;
+    /*tf::Point tf_map_goal;
     tf_map_goal.setX(map_pose.pose.position.x);   //fill in the data members of this tf::Point
     tf_map_goal.setY(map_pose.pose.position.y);
     tf_map_goal.setZ(map_pose.pose.position.z);
@@ -310,13 +310,13 @@ geometry_msgs::PoseStamped DesStateGenerator::map_to_odom_pose(geometry_msgs::Po
             std::cout<<"DEBUG:  enter 1: ";
             std::cin>>ans;   
         }    */
-    return odom_pose; // dummy--no conversion; when AMCL is running, use base-frame transform to convert from map to odom coords
+    return map_pose; // dummy--no conversion; when AMCL is running, use base-frame transform to convert from map to odom coords
 }
 
 // changed from nothing to same thing as map_to_odom_pose but with map and odom roles flipped
 geometry_msgs::PoseStamped DesStateGenerator::odom_to_map_pose(geometry_msgs::PoseStamped odom_pose) {
     // to use tf, we need to convert coords from a geometry_msgs::Pose into a tf::Point
-    tf::Point tf_odom_goal;
+    /*tf::Point tf_odom_goal;
     tf_odom_goal.setX(odom_pose.pose.position.x);
     tf_odom_goal.setY(odom_pose.pose.position.y);
     tf_odom_goal.setZ(odom_pose.pose.position.z);
@@ -359,7 +359,7 @@ geometry_msgs::PoseStamped DesStateGenerator::odom_to_map_pose(geometry_msgs::Po
             std::cout<<"DEBUG:  enter 1: ";
             std::cin>>ans;   
         }   */
-    return map_pose; // dummy--no conversion; when AMCL is running, use base-frame transform to convert from map to odom coords
+    return odom_pose; // dummy--no conversion; when AMCL is running, use base-frame transform to convert from map to odom coords
 }
 
 // NEED TO CONVERT FROM POLYLINE PATH TO DYNAMICALLY FEASIBLE PATH SEGMENTS
