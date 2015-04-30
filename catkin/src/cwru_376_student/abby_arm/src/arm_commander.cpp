@@ -27,7 +27,8 @@ const int HOME = 0;
 const int MID1 = 1;
 const int MID2 = 2;
 const int HOVER = 3;
-const int GRAB = 4;
+const int GRAB_POSITION = 4;
+const int GRAB = 5;
 const int UP = 10;
 const int DOWN = 11;
 
@@ -136,10 +137,13 @@ int main(int argc, char** argv) {
                 goal_pose.pose.position.y = can_location.pose.position.y;
                 goal_pose.pose.position.z = can_location.pose.position.z + 0.4;
                 break;
-            case GRAB:
+            case GRAB_POSITION:
                 goal_pose.pose.position.x = can_location.pose.position.x;
                 goal_pose.pose.position.y = can_location.pose.position.y;
                 goal_pose.pose.position.z = can_location.pose.position.z + 0.4 - .12;
+                break;
+            case GRAB:
+                //grab here!
                 break;
             case UP:
                 goal_pose.pose.position.z += .01;

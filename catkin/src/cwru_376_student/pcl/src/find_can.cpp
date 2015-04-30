@@ -77,6 +77,10 @@ const int PUBLISH_CAN_LOCATION = 4;
 const int FIND_ON_TABLE = 5;
 const int CAN_SHRINK = 10;
 const int CAN_GROW = 11;
+const int FIT_LEFT = 20;
+const int FIT_FORWARD = 21;
+const int FIT_RIGHT = 22;
+const int FIT_BACKWARD = 23;
 
 const double Z_EPS = 0.01; //choose a tolerance for plane fitting, e.g. 1cm
 const double R_EPS = 0.05; // choose a tolerance for cylinder-fit outliers
@@ -629,6 +633,70 @@ int main(int argc, char** argv) {
                 H_CYLINDER *= 1.05;
                 g_trigger = true;
                 g_pcl_process_mode = 2;
+                break;
+            case FIT_LEFT:
+                can_center_wrt_plane[0] += .01;
+                can_center_wrt_plane[1] += 0;
+
+                ROS_INFO("attempting to fit points to cylinder, radius %f, cx = %f, cy = %f", R_CYLINDER, can_center_wrt_plane[0], can_center_wrt_plane[1]);
+
+                // Define a different goal for the center of the cylinder
+                Eigen::Vector3f can_center_wrt_plane_modified(can_center_wrt_plane[0], can_center_wrt_plane[1] - R_CYLINDER, can_center_wrt_plane[2]);
+                // compute_radial_error(inputCloud, indices, double r, Eigen::Vector3f center, double &E, double &dEdCx, double &dEdCy) {
+                compute_radial_error(g_cloud_transformed, indices_pts_above_plane, R_CYLINDER, can_center_wrt_plane_modified, E, dEdCx, dEdCy);
+                cout << "E: " << E << "; dEdCx: " << dEdCx << "; dEdCy: " << dEdCy << endl;
+
+                g_cylinder_origin =    g_A_plane * can_center_wrt_plane;
+                A_plane_to_sensor.translation() = g_cylinder_origin;
+                transform_cloud(g_canCloud, A_plane_to_sensor, g_display_cloud);
+                break;
+            case FIT_FORWARD:
+                can_center_wrt_plane[0] += 0;
+                can_center_wrt_plane[1] += .01;
+
+                ROS_INFO("attempting to fit points to cylinder, radius %f, cx = %f, cy = %f", R_CYLINDER, can_center_wrt_plane[0], can_center_wrt_plane[1]);
+
+                // Define a different goal for the center of the cylinder
+                Eigen::Vector3f can_center_wrt_plane_modified(can_center_wrt_plane[0], can_center_wrt_plane[1] - R_CYLINDER, can_center_wrt_plane[2]);
+                // compute_radial_error(inputCloud, indices, double r, Eigen::Vector3f center, double &E, double &dEdCx, double &dEdCy) {
+                compute_radial_error(g_cloud_transformed, indices_pts_above_plane, R_CYLINDER, can_center_wrt_plane_modified, E, dEdCx, dEdCy);
+                cout << "E: " << E << "; dEdCx: " << dEdCx << "; dEdCy: " << dEdCy << endl;
+
+                g_cylinder_origin =    g_A_plane * can_center_wrt_plane;
+                A_plane_to_sensor.translation() = g_cylinder_origin;
+                transform_cloud(g_canCloud, A_plane_to_sensor, g_display_cloud);
+                break;
+            case FIT_RIGHT:
+                can_center_wrt_plane[0] -= .01;
+                can_center_wrt_plane[1] -= 0;
+
+                ROS_INFO("attempting to fit points to cylinder, radius %f, cx = %f, cy = %f", R_CYLINDER, can_center_wrt_plane[0], can_center_wrt_plane[1]);
+
+                // Define a different goal for the center of the cylinder
+                Eigen::Vector3f can_center_wrt_plane_modified(can_center_wrt_plane[0], can_center_wrt_plane[1] - R_CYLINDER, can_center_wrt_plane[2]);
+                // compute_radial_error(inputCloud, indices, double r, Eigen::Vector3f center, double &E, double &dEdCx, double &dEdCy) {
+                compute_radial_error(g_cloud_transformed, indices_pts_above_plane, R_CYLINDER, can_center_wrt_plane_modified, E, dEdCx, dEdCy);
+                cout << "E: " << E << "; dEdCx: " << dEdCx << "; dEdCy: " << dEdCy << endl;
+
+                g_cylinder_origin =    g_A_plane * can_center_wrt_plane;
+                A_plane_to_sensor.translation() = g_cylinder_origin;
+                transform_cloud(g_canCloud, A_plane_to_sensor, g_display_cloud);
+                break;
+            case FIT_BACKWARD:
+                can_center_wrt_plane[0] -= 0;
+                can_center_wrt_plane[1] -= .01;
+
+                ROS_INFO("attempting to fit points to cylinder, radius %f, cx = %f, cy = %f", R_CYLINDER, can_center_wrt_plane[0], can_center_wrt_plane[1]);
+
+                // Define a different goal for the center of the cylinder
+                Eigen::Vector3f can_center_wrt_plane_modified(can_center_wrt_plane[0], can_center_wrt_plane[1] - R_CYLINDER, can_center_wrt_plane[2]);
+                // compute_radial_error(inputCloud, indices, double r, Eigen::Vector3f center, double &E, double &dEdCx, double &dEdCy) {
+                compute_radial_error(g_cloud_transformed, indices_pts_above_plane, R_CYLINDER, can_center_wrt_plane_modified, E, dEdCx, dEdCy);
+                cout << "E: " << E << "; dEdCx: " << dEdCx << "; dEdCy: " << dEdCy << endl;
+
+                g_cylinder_origin =    g_A_plane * can_center_wrt_plane;
+                A_plane_to_sensor.translation() = g_cylinder_origin;
+                transform_cloud(g_canCloud, A_plane_to_sensor, g_display_cloud);
                 break;
             default:
                 ROS_WARN("this mode is not implemented");
