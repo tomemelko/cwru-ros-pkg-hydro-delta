@@ -22,6 +22,7 @@ SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
 # Executables
 # cs_add_executable(example src/example.cpp)
 cs_add_executable(abby_move_interface src/abby_move_interface.cpp)
+cs_add_executable(arm_commander src/arm_commander.cpp)
 
 # target_link_library(example my_lib)
 

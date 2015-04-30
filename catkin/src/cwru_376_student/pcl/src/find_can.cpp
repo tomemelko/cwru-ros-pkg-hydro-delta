@@ -432,10 +432,7 @@ void make_can_cloud(PointCloud<pcl::PointXYZ>::Ptr canCloud, double r_can, doubl
             i++;
         }
     }
-    //canCloud->header = inputCloud->header;
     canCloud->header.frame_id = "camera_depth_optical_frame";
-    //canCloud->header.frame_id = "odom";
-    //canCloud->header.stamp = ros::Time::now();
     canCloud->is_dense = true;
     canCloud->width = npts;
     canCloud->height = 1;
@@ -514,8 +511,7 @@ int main(int argc, char** argv) {
 
     // have rviz display both of these topics
     ros::Publisher pubCloud = nh.advertise<sensor_msgs::PointCloud2> ("/plane_model", 1);
-    ros::Publisher pubCanLocation = nh.advertise<geometry_msgs::Vector3> ("/can_location", 1);
-    ros::Publisher pubCanLocationViz = nh.advertise<geometry_msgs::PoseStamped> ("/can_location_viz", 1);
+    ros::Publisher pubCanLocation = nh.advertise<geometry_msgs::PoseStamped> ("/can_location", 1);
 
     // service used to interactively change processing modes
     ros::ServiceServer service = nh.advertiseService("process_mode", modeService);
@@ -605,21 +601,17 @@ int main(int argc, char** argv) {
 
             case PUBLISH_CAN_LOCATION:
             {
-                geometry_msgs::Vector3 canLocation;
-                canLocation.x = g_cylinder_origin[0];
-                canLocation.y = g_cylinder_origin[1];
-                canLocation.z = g_cylinder_origin[2];
+                ROS_INFO("can location is: %lf, %lf, %lf", g_cylinder_origin[0], g_cylinder_origin[1], g_cylinder_origin[2]);
+                geometry_msgs::PoseStamped canLocation;
+                canLocation.header.frame_id = "camera_depth_optical_frame";
+                canLocation.pose.position.x = g_cylinder_origin[0];
+                canLocation.pose.position.y = g_cylinder_origin[1];
+                canLocation.pose.position.z = g_cylinder_origin[2];
+                canLocation.pose.orientation.x = 0;
+                canLocation.pose.orientation.y = 0;
+                canLocation.pose.orientation.z = 0;
+                canLocation.pose.orientation.w = 1;
                 pubCanLocation.publish(canLocation);
-
-                geometry_msgs::PoseStamped canLocationViz;
-                canLocationViz.pose.position.x = g_cylinder_origin[0];
-                canLocationViz.pose.position.y = g_cylinder_origin[1];
-                canLocationViz.pose.position.z = g_cylinder_origin[2];
-                canLocationViz.pose.orientation.x = 0;
-                canLocationViz.pose.orientation.y = 0;
-                canLocationViz.pose.orientation.z = 0;
-                canLocationViz.pose.orientation.w = 0;
-                pubCanLocationViz.publish(canLocationViz);
                 break;
             }
             case FIND_ON_TABLE:

@@ -36,14 +36,15 @@ geometry_msgs::PoseStamped g_marker_pose_wrt_arm_base;
 
 using namespace std;
 
-void poseListenerCB(const geometry_msgs::PoseStamped &g_marker_pose_wrt_arm_base) {
-    ROS_INFO_STREAM("Goal pose is now at "
-                    << g_marker_pose_wrt_arm_base.pose.position.x << ", " << g_marker_pose_wrt_arm_base.pose.position.y
-                    << ", " << g_marker_pose_wrt_arm_base.pose.position.z);
-    ROS_INFO_STREAM("marker frame_id is " << g_marker_pose_wrt_arm_base.header.frame_id);
-    g_marker_pose_in.header = g_marker_pose_wrt_arm_base.header;
-    g_marker_pose_in.pose = g_marker_pose_wrt_arm_base.pose;
-    //g_tfListener->transformPose("link1", g_marker_pose_in, g_marker_pose_wrt_arm_base);
+void poseListenerCB(const geometry_msgs::PoseStamped &in_pose) {
+    ROS_INFO_STREAM("base_link goal pose is now at "
+                    << in_pose.pose.position.x << ", " << in_pose.pose.position.y
+                    << ", " << in_pose.pose.position.z);
+    ROS_INFO_STREAM("marker frame_id is " << in_pose.header.frame_id);
+    //g_marker_pose_in.header = in_pose.header;
+    //g_marker_pose_in.pose = in_pose.pose;
+
+    g_tfListener->transformPose("link1", in_pose, g_marker_pose_wrt_arm_base);
 
     // For final project, create a Pose publisher, subscribe to that here, and use that information in this class to make our goal position for home/goal/beer first/etc.
 
@@ -55,6 +56,11 @@ void poseListenerCB(const geometry_msgs::PoseStamped &g_marker_pose_wrt_arm_base
     g_quat.z() = g_marker_pose_wrt_arm_base.pose.orientation.z;
     g_quat.w() = g_marker_pose_wrt_arm_base.pose.orientation.w;
     goal_rotation = g_quat.matrix();
+
+    ROS_INFO_STREAM("transformed goal pose is now at "
+                    << g_marker_pose_wrt_arm_base.pose.position.x << ", " << g_marker_pose_wrt_arm_base.pose.position.y
+                    << ", " << g_marker_pose_wrt_arm_base.pose.position.z);
+    ROS_INFO_STREAM("marker frame_id is " << g_marker_pose_wrt_arm_base.header.frame_id);
 }
 
 //storing current position into current_position
@@ -192,7 +198,7 @@ int main(int argc, char** argv) {
             //try to lookup transform from target frame "odom" to source frame "map"
             //The direction of the transform returned will be from the target_frame to the source_frame.
             //Which if applied to data, will transform data in the source_frame into the target_frame. See tf/CoordinateFrameConventions#Transform_Direction
-            g_tfListener->lookupTransform("base_link", "link1", ros::Time(0), g_armlink1_wrt_baseLink);
+            g_tfListener->lookupTransform("link1", "base_link", ros::Time(0), g_armlink1_wrt_baseLink);
         }
         catch (tf::TransformException &exception)
         {

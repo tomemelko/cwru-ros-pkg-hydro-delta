@@ -1,0 +1,20 @@
+home: .6, -0.44, 1.06; 0, 0.726, 0, 0.687
+
+{header: {frame_id: "base_link"}, pose: {position: {x: .6, y: -0.44, z: 1.06}, orientation: {x: 0, y: 0.726, z: 0, w: 0.687}}}
+
+
+HOME: {header: {frame_id: "base_link"}, pose: {position: {x: .1, y: -0.5, z: .17}, orientation: {x: 0, y: 0, z: 0, w: 1}}}
+PREP: {header: {frame_id: "base_link"}, pose: {position: {x: .38, y: FROM_PCL, z: FROM_PCL}, orientation: {x: 0, y: 0, z: 0, w: 1}}}
+GRAB: {header: {frame_id: "base_link"}, pose: {position: {x: TOP_OF_CAN, y: FROM_PCL, z: FROM_PCL}, orientation: {x: 0, y: 0, z: 0, w: 1}}}
+LIFT: {header: {frame_id: "base_link"}, pose: {position: {x: .38, y: FROM_PCL, z: FROM_PCL}, orientation: {x: 0, y: 0, z: 0, w: 1}}}
+backup- beep, beep, beep
+HOME: 
+
+
+from bottom of can go up .4
+to grab go down .12
+
+from home to grab:
+home: {x: .6, y: -0.55, z: 1.1}
+mid-1: {x: 1, y: -0.275, z: 1.1}
+mid-2: {x: 1.25, y: 0, z: 1.2}
